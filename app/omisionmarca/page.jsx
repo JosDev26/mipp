@@ -1,15 +1,62 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+// Helpers de días hábiles (copiados de formjustificacion)
+function shiftYMD(ymd, days) {
+  const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+function dayOfWeek(ymd) {
+  const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCDay();
+}
+function previousBusinessDaysCR(todayYMD, count = 2) {
+  const res = [];
+  let cur = todayYMD;
+  while (res.length < count) {
+    cur = shiftYMD(cur, -1);
+    const dow = dayOfWeek(cur);
+    if (dow >= 1 && dow <= 5) res.push(cur);
+  }
+  return res;
+}
+function crYMD() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Costa_Rica', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date())
+    .reduce((acc, p) => { if (p.type !== 'literal') acc[p.type] = p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../lib/useCurrentUser";
 import LoadingOverlay from '../../components/LoadingOverlay';
 
+
 const fmt2 = (n) => String(n).padStart(2, "0");
 
+
 export default function OmisionMarcaPage() {
+  // Fechas permitidas: dos días hábiles anteriores (zona horaria CR)
+  const [todayCR, setTodayCR] = useState(crYMD());
+  useEffect(() => {
+    (async () => {
+      try {
+        if (supabase && supabase.rpc) {
+          const { data: todayData, error } = await supabase.rpc('get_today_cr');
+          if (!error && todayData) setTodayCR(String(todayData));
+        }
+      } catch {}
+    })();
+  }, []);
+  const prevBiz = useMemo(() => previousBusinessDaysCR(todayCR, 2), [todayCR]);
+  const minAllowed = useMemo(() => (prevBiz.slice().sort()[0] || ''), [prevBiz]);
+  const maxAllowed = useMemo(() => (prevBiz.slice().sort()[1] || prevBiz[0] || ''), [prevBiz]);
+  const allowedSet = useMemo(() => new Set(prevBiz), [prevBiz]);
+
   const router = useRouter();
   const { user: currentUser, loading: authLoading } = useCurrentUser();
   const [user, setUser] = useState(null);
@@ -143,6 +190,8 @@ export default function OmisionMarcaPage() {
               onChange={handleChange}
               required
               style={{ display: "block" }}
+              min={minAllowed}
+              max={maxAllowed}
             />
           </label>
         </div>

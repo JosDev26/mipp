@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+// Head removido; la fuente se aplica globalmente desde layout
+import styles from './page.module.css';
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from 'next/navigation';
 import useCurrentUser from '../../lib/useCurrentUser';
@@ -315,6 +317,7 @@ export default function SolicitudPermiso() {
       } else {
         alert("Solicitud enviada");
       }
+      router.push('/home');
       try { localStorage.removeItem("permisoFormDraft"); } catch {}
       setForm({ tipoGeneral: "Salida", esRango:false, fecha:"", fechaFin:"", horaInicio:"", horaFin:"", jornada:"Media", tipoSolicitud:"Cita medica personal", familiar:"", cantidad:"", unidad:"horas", observaciones:"", horaSalida:"", adjunto:null });
     } catch (err) {
@@ -337,31 +340,55 @@ export default function SolicitudPermiso() {
   }, [isProfesor]);
 
   return (
-    <div style={{ maxWidth: 800, margin: "2rem auto", padding: 24 }}>
-  <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
-      {/* Breadcrumb simple (informativo) */}
-      <nav style={{ marginBottom: 12, color: "#666" }} aria-label="breadcrumb">
-        <span>Datos</span> <span>›</span> <span>Detalles</span> <span>›</span> <span>Adjuntos</span> <span>›</span> <span>Confirmación</span>
-      </nav>
+    <div className={styles.page}>
+  {/* Fuente global desde layout */}
+      <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
 
-      <h2>Solicitud de permiso</h2>
+      {/* Encabezado estilo maqueta */}
+      <div className={styles.topbar}>
+        <Link href="/home" className={styles.back}>⟵ Volver</Link>
+      </div>
+      <div className={styles.brandrow}>
+        <div className={styles.brand}>MIPP+</div>
+        <div className={styles.logos} aria-hidden>
+          {/* Placeholder para logos del MEP y escudos en la derecha */}
+          <span />
+        </div>
+      </div>
+      <div className={styles.titleBanner}>
+        Formulario de Solicitud de Permiso de Salida, Ausencia, Tardía o Incapacidades
+      </div>
+      <p className={styles.note}>
+        <strong>Importante:</strong> Todo permiso de ausencia laboral está sujeto a cumplimiento de requisitos y copia adjunta de documento pertinente de cita, convocatoria o licencia, de ser posible con tres días de anticipación. Posterior a la ausencia y/o tardía, el funcionario debe de hacer entrega del comprobante pertinente de justificación de asistencia en el plazo no mayor de 48 (cuarenta y ocho) horas. Las licencias dependen de requisitos previos para su goce. De no presentar el comprobante se tramitará lo que corresponda.
+      </p>
+      <hr className={styles.divider} />
 
-      {/* Texto auto-rellenado del usuario */}
-      <div style={{ background: "#f7f7f7", padding: 12, borderRadius: 6, marginBottom: 16 }}>
+      {/* Texto auto-rellenado del usuario (chips estilo maqueta) */}
+      <div className={styles.presento}>
         {user ? (
-          <p>
-            Quien se suscribe <strong>{nombreCompleto}</strong>, con cédula de identidad <strong>{user.cedula}</strong>, quien labora en la institución educativa CTP Mercedes Norte, en el puesto de <strong>{user.posicion}</strong>, en condición <strong>{user.instancia}</strong>.
-          </p>
+          <div className={styles.chips}>
+            <span>Quien se suscribe</span>
+            <span className={styles.chip}>{nombreCompleto}</span>
+            <span>, con cédula de identidad</span>
+            <span className={styles.chip}>{user.cedula}</span>
+            <span>, quien labora en la institución educativa</span>
+            <span className={styles.chip}>CTP Mercedes Norte</span>
+            <span>, en el puesto de</span>
+            <span className={styles.chip}>{user.posicion}</span>
+            <span>, en condición de</span>
+            <span className={styles.chip}>{user.instancia}</span>
+            <span>, solicita:</span>
+          </div>
         ) : (
           <p>Inicia sesión para prellenar tus datos. <Link href="/login">Ir a login</Link></p>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} style={{ border: "1px solid #ddd", padding: 16, borderRadius: 8 }}>
+      <form onSubmit={handleSubmit} className={styles.formCard}>
         {/* Tipo general */}
-        <div style={{ marginBottom:12 }}>
-          <label>Tipo <span style={{color:'red'}}>*</span>
-            <select name="tipoGeneral" value={form.tipoGeneral} onChange={handleChange} style={{ display:'block' }}>
+        <div className={styles.field}>
+          <label className={styles.lbl}>Permiso de:
+            <select name="tipoGeneral" value={form.tipoGeneral} onChange={handleChange} className={styles.select}>
               <option>Salida</option>
               <option>Ausencia</option>
               <option>Tardía</option>
@@ -371,139 +398,144 @@ export default function SolicitudPermiso() {
         </div>
 
         {/* Fecha o rango */}
-        <div style={{ display: "flex", gap: 12, alignItems: "end", marginBottom: 12 }}>
-          <div>
-            <label title="Selecciona la fecha de inicio del permiso">Fecha inicio <span style={{color:'red'}}>*</span>
-              <input type="date" name="fecha" value={form.fecha} onChange={handleChange} required style={{ display:'block' }} min={todayYMD} />
-            </label>
+        <div className={styles.grid}>
+          <div className={`${styles.field} ${styles['span-4']}`}>
+            <label className={styles.lbl}>Fecha</label>
+            <input title="Selecciona la fecha de inicio del permiso" className={styles.input} type="date" name="fecha" value={form.fecha} onChange={e => {
+                const val = e.target.value;
+                const d = new Date(val);
+                // 0 = domingo, 6 = sábado
+                if (d && (d.getDay() === 0 || d.getDay() === 6)) {
+                  alert('No se permiten fines de semana.');
+                  setForm(f => ({ ...f, fecha: '' }));
+                  return;
+                }
+                handleChange(e);
+              }} required min={todayYMD} />
           </div>
-      {form.esRango && (
-            <div>
-      <label>Fecha fin <span style={{color:'red'}}>*</span>
-    <input type="date" name="fechaFin" value={form.fechaFin} onChange={handleChange} required style={{ display:'block' }} min={form.esRango && form.fecha ? addDaysYMD(form.fecha, 1) : (form.fecha || todayYMD)} />
-              </label>
+          {form.esRango && (
+            <div className={`${styles.field} ${styles['span-4']}`}>
+              <label className={styles.lbl}>Fecha fin</label>
+              <input className={styles.input} type="date" name="fechaFin" value={form.fechaFin} onChange={e => {
+      const val = e.target.value;
+      const d = new Date(val);
+      if (d && (d.getDay() === 0 || d.getDay() === 6)) {
+        alert('No se permiten fines de semana.');
+        setForm(f => ({ ...f, fechaFin: '' }));
+        return;
+      }
+      handleChange(e);
+    }} required min={form.esRango && form.fecha ? addDaysYMD(form.fecha, 1) : (form.fecha || todayYMD)} />
             </div>
           )}
-          <button type="button" onClick={toggleFechaModo} title="Alterna entre una sola fecha o un rango">{form.esRango ? "Usar una sola fecha" : "Usar rango de fechas"}</button>
-        </div>
 
-        {/* Jornada y horas */}
-        <div style={{ display:'flex', gap:12, alignItems:'end', marginBottom:12 }}>
-          <div>
-            <label title="Media jornada = hasta 4 horas">Jornada <span style={{color:'red'}}>*</span></label>
-            <div>
-              <button type="button" onClick={toggleJornada}>{form.jornada === "Media" ? "Cambiar a Jornada completa" : "Cambiar a Media jornada"}</button>
-              <span style={{marginLeft:8}}>{form.jornada}</span>
-            </div>
-          </div>
-          {form.jornada === "Media" && (
+          {/* Hora: Desde/Hasta */}
+          {form.jornada === 'Media' && (
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <div style={{ display:'flex', gap:12 }}>
-                <div>
-                  <label title="Hora de inicio">Hora inicio <span style={{color:'red'}}>*</span></label>
-                  <TimePicker
-                    ampm
-                    minutesStep={STEP_MINUTES}
-                    value={toDayjsFromHHMM(form.horaInicio) || null}
-                    onChange={(newVal) => {
-                      setForm((prev) => {
-                        let nextStart = toHHMMFromDayjs(newVal);
-                        // clamp to min/max
-                        nextStart = clampTime(nextStart || TIME_MIN);
-                        // if end missing, set to start + step; else normalize to ensure end > start
-                        const currentEnd = prev.horaFin || addMin(nextStart, STEP_MINUTES);
-                        const { s, e } = normalizeTimes(nextStart, currentEnd);
-                        return { ...prev, horaInicio: s, horaFin: e };
-                      });
-                    }}
-                    minTime={minTimeDJ()}
-                    maxTime={maxTimeDJ()}
-                    slotProps={{ textField: { required: true, inputProps: { 'aria-label': 'Hora de inicio' } } }}
-                  />
-                </div>
-                <div>
-                  <label title="Hora de fin">Hora fin <span style={{color:'red'}}>*</span></label>
-                  <TimePicker
-                    ampm
-                    minutesStep={STEP_MINUTES}
-                    value={toDayjsFromHHMM(form.horaFin) || null}
-                    onChange={(newVal) => {
-                      setForm((prev) => {
-                        let nextEnd = toHHMMFromDayjs(newVal);
-                        nextEnd = clampTime(nextEnd || addMin(prev.horaInicio || TIME_MIN, STEP_MINUTES));
-                        const { s, e } = normalizeTimes(prev.horaInicio || TIME_MIN, nextEnd);
-                        return { ...prev, horaInicio: s, horaFin: e };
-                      });
-                    }}
-                    minTime={toDayjsFromHHMM(form.horaInicio || TIME_MIN) || minTimeDJ()}
-                    maxTime={maxTimeDJ()}
-                    slotProps={{ textField: { required: true, inputProps: { 'aria-label': 'Hora fin' } } }}
-                  />
+              <div className={`${styles.field} ${styles['span-6']}`}>
+                <label className={styles.lbl}>Hora</label>
+                <div className={styles.row}>
+                  <div className={styles.picker}>
+                    <span className={styles.hint}>Desde las</span>
+                    <TimePicker
+                      ampm
+                      minutesStep={STEP_MINUTES}
+                      value={toDayjsFromHHMM(form.horaInicio) || null}
+                      onChange={(newVal) => {
+                        setForm((prev) => {
+                          let nextStart = toHHMMFromDayjs(newVal);
+                          // clamp to min/max
+                          nextStart = clampTime(nextStart || TIME_MIN);
+                          // if end missing, set to start + step; else normalize to ensure end > start
+                          const currentEnd = prev.horaFin || addMin(nextStart, STEP_MINUTES);
+                          const { s, e } = normalizeTimes(nextStart, currentEnd);
+                          return { ...prev, horaInicio: s, horaFin: e };
+                        });
+                      }}
+                      minTime={minTimeDJ()}
+                      maxTime={maxTimeDJ()}
+                      slotProps={{
+                        textField: {
+                          required: true,
+                          fullWidth: true,
+                          size: 'small',
+                          margin: 'dense',
+                          variant: 'outlined',
+                          inputProps: { 'aria-label': 'Hora de inicio' },
+                          sx: {
+                            minWidth: 0,
+                            '& .MuiInputBase-input': { padding: '10px 12px' },
+                            '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className={styles.picker}>
+                    <span className={styles.hint}>Hasta las</span>
+                    <TimePicker
+                      ampm
+                      minutesStep={STEP_MINUTES}
+                      value={toDayjsFromHHMM(form.horaFin) || null}
+                      onChange={(newVal) => {
+                        setForm((prev) => {
+                          let nextEnd = toHHMMFromDayjs(newVal);
+                          nextEnd = clampTime(nextEnd || addMin(prev.horaInicio || TIME_MIN, STEP_MINUTES));
+                          const { s, e } = normalizeTimes(prev.horaInicio || TIME_MIN, nextEnd);
+                          return { ...prev, horaInicio: s, horaFin: e };
+                        });
+                      }}
+                      minTime={toDayjsFromHHMM(form.horaInicio || TIME_MIN) || minTimeDJ()}
+                      maxTime={maxTimeDJ()}
+                      slotProps={{
+                        textField: {
+                          required: true,
+                          fullWidth: true,
+                          size: 'small',
+                          margin: 'dense',
+                          variant: 'outlined',
+                          inputProps: { 'aria-label': 'Hora fin' },
+                          sx: {
+                            minWidth: 0,
+                            '& .MuiInputBase-input': { padding: '10px 12px' },
+                            '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                          }
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </LocalizationProvider>
           )}
 
-  </div>
-
-        {/* Tipo de solicitud */}
-        <div style={{ marginBottom:12 }}>
-          <label>Tipo de solicitud <span style={{color:'red'}}>*</span>
-            <select name="tipoSolicitud" value={form.tipoSolicitud} onChange={handleChange} style={{ display:'block' }}>
-              <option>Cita medica personal</option>
-              <option>Acompañar a cita familiar</option>
-              <option>Asistencia a convocatoria</option>
-              <option>Atención de asuntos personales</option>
-            </select>
-          </label>
-        </div>
-
-        {/* Dependiente del tipo */}
-        {form.tipoSolicitud === "Acompañar a cita familiar" && (
-          <div style={{ marginBottom:12 }}>
-            <label>Familiar <span style={{color:'red'}}>*</span>
-              <select name="familiar" value={form.familiar} onChange={handleChange} style={{ display:'block' }}>
-                <option value="">Seleccione</option>
-                <option>Padre</option>
-                <option>Madre</option>
-                <option>Hijos menores de edad</option>
-                <option>Esposo/a</option>
-                <option>Conyugue</option>
-                <option>Hijos discapacitados</option>
-              </select>
-            </label>
+          {/* Tipo de jornada */}
+          <div className={`${styles.field} ${styles['span-2']}`}>
+            <label className={styles.lbl}>Tipo de jornada</label>
+            <div className={styles.btnGroup}>
+              <button type="button" onClick={toggleJornada} className={`${styles.btn} ${styles.btnPrimary}`}>
+                {form.jornada === "Media" ? "Cambiar a Completa" : "Cambiar a Media"}
+              </button>
+              <span className={styles.badge}>{form.jornada === 'Media' ? 'Media' : 'Jornada Laboral Completa'}</span>
+            </div>
           </div>
-        )}
 
-        {(form.tipoSolicitud === "Cita medica personal" || form.tipoSolicitud === "Asistencia a convocatoria") && (
-          <div style={{ marginBottom:12 }}>
-            <label>Adjuntar documento <span style={{color:'red'}}>*</span>
-              <input type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} style={{ display:'block' }} />
-            </label>
-            <span title="Se permiten imágenes (jpg, png), PDF y Word">¿Qué documentos? (?)</span>
+          {/* Cantidad segun rol */}
+          <div className={`${styles.field} ${styles['span-4']}`}>
+            <label className={styles.lbl}>{isProfesor ? 'Cantidad de lecciones' : 'Cantidad de horas'}</label>
+            <input className={styles.input} type="number" name="cantidad" value={form.cantidad} onChange={handleChange} min={0} step={1} />
           </div>
-        )}
-
-        {/* Cantidad según rol */}
-        <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-          <label>{isProfesor ? "Cantidad de lecciones" : "Cantidad de horas"}
-            <input type="number" name="cantidad" value={form.cantidad} onChange={handleChange} min={0} step={1} style={{ display:'block' }} />
-          </label>
-          <div>
-            <label>Unidad</label>
-            <input value={isProfesor ? "lecciones" : "horas"} readOnly style={{ display:'block', width:120 }} />
+          <div className={`${styles.field} ${styles['span-4']}`}>
+            <label className={styles.lbl}>Unidad</label>
+            <input className={styles.input} value={isProfesor ? 'lecciones' : 'horas'} readOnly />
           </div>
-        </div>
 
-        {/* Observaciones y hora salida */}
-        <div style={{ display:'flex', gap:12, marginBottom:12 }}>
-          <label style={{ flex:1 }}>Observaciones
-            <textarea name="observaciones" value={form.observaciones} onChange={handleChange} rows={3} style={{ width:'100%' }} placeholder="Opcional" />
-          </label>
-          {form.jornada === 'Media' && (
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <div>
-                <label title="Hora de salida del centro educativo">Hora de salida</label>
+          {/* Hora de salida */}
+          <div className={`${styles.field} ${styles['span-4']}`}>
+            <label className={styles.lbl}>Hora de salida del centro educativo</label>
+            {form.jornada === 'Media' ? (
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <div className={styles.picker}>
                 <TimePicker
                   ampm
                   minutesStep={STEP_MINUTES}
@@ -514,24 +546,82 @@ export default function SolicitudPermiso() {
                   }}
                   minTime={minTimeDJ()}
                   maxTime={maxTimeDJ()}
-                  slotProps={{ textField: { inputProps: { 'aria-label': 'Hora de salida' } } }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      margin: 'dense',
+                      variant: 'outlined',
+                      inputProps: { 'aria-label': 'Hora de salida' },
+                      sx: {
+                        minWidth: 0,
+                        '& .MuiInputBase-input': { padding: '5px 5px' },
+                        '& .MuiOutlinedInput-root': { borderRadius: '0px' },
+                      }
+                    }
+                  }}
                 />
-              </div>
-            </LocalizationProvider>
-          )}
+                </div>
+              </LocalizationProvider>
+            ) : (
+              <input className={styles.input} value="" placeholder="No aplica para jornada completa" readOnly />
+            )}
+          </div>
         </div>
 
-        {/* Texto de presentación */}
-        <div style={{ background:'#f7f7f7', padding:10, borderRadius:6, marginBottom:12 }}>
-          <p>Presento la solicitud a las <strong>{hoyTxt.hora}</strong> del día <strong>{hoyTxt.dia}</strong> del mes <strong>{hoyTxt.mes}</strong> del año <strong>{hoyTxt.anio}</strong>.</p>
+        {/* Tipo de solicitud */}
+        <div className={styles.field}>
+          <label className={styles.lbl}>Motivo</label>
+          <select name="tipoSolicitud" value={form.tipoSolicitud} onChange={handleChange} className={styles.select}>
+            <option>Cita medica personal</option>
+            <option>Acompañar a cita familiar</option>
+            <option>Asistencia a convocatoria</option>
+            <option>Atención de asuntos personales</option>
+          </select>
+        </div>
+
+        
+
+        {/* Dependiente del tipo */}
+        {form.tipoSolicitud === "Acompañar a cita familiar" && (
+          <div className={styles.field}>
+            <label className={styles.lbl}>Familiar</label>
+              <select name="familiar" value={form.familiar} onChange={handleChange} className={styles.select}>
+                <option value="">Seleccione</option>
+                <option>Padre</option>
+                <option>Madre</option>
+                <option>Hijos menores de edad</option>
+                <option>Esposo/a</option>
+                <option>Conyugue</option>
+                <option>Hijos discapacitados</option>
+              </select>
+          </div>
+        )}
+
+        {(form.tipoSolicitud === "Cita medica personal" || form.tipoSolicitud === "Asistencia a convocatoria") && (
+          <div className={styles.field}>
+            <label className={styles.lbl}>Adjuntar documento</label>
+            <input className={styles.input} type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} />
+            <span className={styles.hint} title="Se permiten imágenes (jpg, png), PDF y Word">Se permiten imágenes (JPG, PNG), PDF y Word</span>
+          </div>
+        )}
+
+        {/* Observaciones */}
+        <div className={`${styles.field} ${styles['span-12']}`}>
+          <label className={styles.lbl}>Observaciones:</label>
+          <textarea className={styles.textarea} name="observaciones" value={form.observaciones} onChange={handleChange} rows={6} placeholder="Opcional" />
+        </div>
+
+        {/* Texto de presentación estilo pie */}
+        <div className={styles.footerLine}>
+          Presento la solicitud a las <strong>{hoyTxt.hora}</strong> del mes <strong>{new Date().toLocaleString('es-CR', { month: 'long' })}</strong> del año <strong>{hoyTxt.anio}</strong> en Heredia, Mercedes Norte.
         </div>
 
         {/* Acciones */}
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <button type="submit" disabled={loading} style={{ padding: 10, background: "#0070f3", color: "white", border: "none", borderRadius: 6 }} title="Envia tu solicitud">
-            {loading ? "Enviando tu solicitud, esto puede tardar unos segundos..." : "Enviar formulario"}
+        <div className={styles.actions}>
+          <button type="submit" disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`} title="Envia tu solicitud">
+            {loading ? "Enviando solicitud…" : "Enviar solicitud"}
           </button>
-          <Link href="/login">Volver al menú</Link>
         </div>
       </form>
     </div>

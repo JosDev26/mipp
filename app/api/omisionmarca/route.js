@@ -18,7 +18,8 @@ export async function POST(req) {
       instancia: body.instancia || null,
       fecha_omision: body.fecha_omision,
       tipo_omision: body.tipo_omision,
-      justificacion: body.justificacion,
+  justificacion: body.justificacion,
+  estado: 'Pendiente',
     };
 
     const { data, error } = await supabaseAdmin.from('omision_marca').insert([payload]).select('id');

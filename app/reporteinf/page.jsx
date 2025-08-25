@@ -75,10 +75,11 @@ export default function ReporteInfraestructuraPage() {
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Error enviando reporte');
-      setOkMsg('Reporte enviado.');
-      setReporte('');
-      setLugar('');
-      setTipoReporte('Normal');
+  setOkMsg('Reporte enviado.');
+  setReporte('');
+  setLugar('');
+  setTipoReporte('Normal');
+  router.push('/home');
     } catch (err) {
       setErrMsg(err.message || String(err));
     } finally {

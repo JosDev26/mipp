@@ -19,7 +19,8 @@ export async function POST(req) {
       instancia: body.instancia || null,
       tipo_reporte: body.tipo_reporte,
       reporte: body.reporte,
-      lugar: body.lugar,
+  lugar: body.lugar,
+  estado: 'Pendiente',
     };
 
     const { data, error } = await supabaseAdmin.from('reporte_infraestructura').insert([payload]).select('id');

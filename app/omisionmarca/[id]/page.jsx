@@ -62,10 +62,18 @@ export default function OmisionMarcaDetalle() {
         <>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <h2 style={{ margin:0 }}>Detalle de omisión de marca</h2>
-            {isAdmin && !isResolved && (
-              <Link href={`/omisionmarca/${id}/responder`} style={{ color:'#2563eb' }}>Ir a Responder →</Link>
-            )}
           </div>
+
+          {isAdmin && !isResolved && (
+            <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', padding:12, borderRadius:6, marginTop:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <strong>Acción de administrador:</strong> Puedes responder esta solicitud.
+                </div>
+                <Link href={`/omisionmarca/${id}/responder`} style={{ padding:'8px 12px', background:'#d97706', color:'#fff', borderRadius:6, textDecoration:'none' }}>Ir a Responder</Link>
+              </div>
+            </div>
+          )}
 
           <section style={{ background: '#f7f7f7', padding: 12, borderRadius: 6, marginBottom: 16 }}>
             <p><strong>Fecha de omisión:</strong> {row.fecha_omision}</p>
@@ -86,7 +94,7 @@ export default function OmisionMarcaDetalle() {
             <h3>Detalle</h3>
             <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
               <p><strong>Justificación:</strong> {row.justificacion}</p>
-              <p style={{ color: '#666' }}><strong>Creado:</strong> {row.creado_en || '—'}</p>
+              <p style={{ color: '#666' }}><strong>Creado:</strong> {row.creado_en ? new Date(row.creado_en).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</p>
             </div>
           </section>
 
