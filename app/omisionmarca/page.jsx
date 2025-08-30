@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import styles from './page.module.css';
 // Helpers de días hábiles (copiados de formjustificacion)
 function shiftYMD(ymd, days) {
   const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
@@ -147,110 +148,97 @@ export default function OmisionMarcaPage() {
     }
   };
 
+  const onCancel = () => {
+    if (loading) return;
+    const go = confirm('¿Deseas cancelar y salir? Los datos sin guardar se perderán.');
+    if (go) router.push('/home');
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const btn = document.getElementById('btn-enviar-omision');
+        if (btn && !btn.disabled) btn.click();
+      }
+      if (e.key === 'Escape') {
+        const btn = document.getElementById('btn-cancelar-omision');
+        if (btn) btn.click();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loading]);
+
   return (
-    <div style={{ maxWidth: 800, margin: "2rem auto", padding: 24 }}>
-  <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver</Link>
-      </nav>
-      <h2>Justificar omisión de marca</h2>
-
-      <div
-        style={{
-          background: "#f7f7f7",
-          padding: 12,
-          borderRadius: 6,
-          marginBottom: 16,
-        }}
-      >
-        {user ? (
-          <p>
-            Quien se suscribe <strong>{nombreCompleto}</strong>, con cédula de
-            identidad <strong>{user.cedula}</strong>, quien labora en la
-            institución educativa CTP Mercedes Norte, en el puesto de
-            <strong> {user.posicion}</strong>, en condición
-            <strong> {user.instancia}</strong>.
-          </p>
-        ) : (
-          <p>Inicia sesión para prellenar tus datos.</p>
-        )}
+    <div className={styles.page}>
+      <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      <div className={styles.topbar}>
+        <Link href="/home" className={styles.back}>⟵ Volver</Link>
       </div>
+      <div className={styles.brandrow}>
+        <div className={styles.brand}>MIPP+</div>
+        <div className={styles.logos} aria-hidden><span /></div>
+      </div>
+      <div className={styles.titleBanner}>Justificar omisión de marca</div>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ border: "1px solid #ddd", padding: 16, borderRadius: 8 }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <label>
-            Fecha de la omisión <span style={{ color: "red" }}>*</span>
-            <input
-              type="date"
-              name="fechaOmision"
-              value={form.fechaOmision}
-              onChange={handleChange}
-              required
-              style={{ display: "block" }}
-              min={minAllowed}
-              max={maxAllowed}
-            />
-          </label>
-        </div>
+          {/* Bloque de presentación estilo formulariopermiso */}
+          <div className={styles.presento}>
+            {user ? (
+              <div className={styles.chips}>
+                <span>Quien se suscribe</span>
+                <span className={styles.chip}>{nombreCompleto}</span>
+                <span>, con cédula de identidad</span>
+                <span className={styles.chip}>{user.cedula}</span>
+                <span>, quien labora en la institución educativa</span>
+                <span className={styles.chip}>CTP Mercedes Norte</span>
+                <span>, en el puesto de</span>
+                <span className={styles.chip}>{user.posicion}</span>
+                <span>, en condición de</span>
+                <span className={styles.chip}>{user.instancia}</span>
+                <span>, solicita:</span>
+              </div>
+            ) : (
+              <p>Inicia sesión para prellenar tus datos. <Link href="/login">Ir a login</Link></p>
+            )}
+          </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label>
-            Tipo
-            <select
-              name="tipo"
-              value={form.tipo}
-              onChange={handleChange}
-              style={{ display: "block" }}
-            >
+          <div className={styles.formCard}>
+            <form onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Fecha de la omisión</label>
+            <input className={styles.input} type="date" name="fechaOmision" value={form.fechaOmision} onChange={handleChange} required min={minAllowed} max={maxAllowed} />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.lbl}>Tipo</label>
+            <select className={styles.select} name="tipo" value={form.tipo} onChange={handleChange}>
               <option>Entrada</option>
               <option>Salida</option>
               <option>Todo el dia</option>
               <option>Salida anticipada</option>
             </select>
-          </label>
-        </div>
+          </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block" }}>
-            Justificación <span style={{ color: "red" }}>*</span>
-            <textarea
-              name="justificacion"
-              value={form.justificacion}
-              onChange={handleChange}
-              rows={4}
-              required
-              style={{ width: "100%" }}
-            />
-          </label>
-        </div>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Justificación</label>
+            <textarea className={styles.textarea} name="justificacion" value={form.justificacion} onChange={handleChange} rows={5} required />
+          </div>
 
-        <div style={{ background: "#f7f7f7", padding: 10, borderRadius: 6, marginBottom: 12 }}>
-          <p>
-            Presento la justificación a las <strong>{hoyTxt.hora}</strong> del
-            mes <strong>{hoyTxt.mes}</strong> del año <strong>{hoyTxt.anio}</strong> en Heredia, Mercedes Norte.
-          </p>
-        </div>
+          <div className={styles.footerLine}>
+            Presento la justificación a las <strong>{hoyTxt.hora}</strong> del mes <strong>{hoyTxt.mes}</strong> del año <strong>{hoyTxt.anio}</strong> en Heredia, Mercedes Norte.
+          </div>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: 10,
-              background: "#0f766e",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-            }}
-          >
-            {loading ? "Enviando…" : "Enviar"}
-          </button>
-          <Link href="/home">Volver al menú</Link>
-        </div>
-      </form>
+          <div className={styles.actions}>
+            <button id="btn-cancelar-omision" type="button" onClick={onCancel} className={`${styles.btn} ${styles.btnSecondary}`}>Cancelar</button>
+            <button id="btn-enviar-omision" type="submit" disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`}>
+              {loading ? 'Enviando…' : 'Enviar'}
+            </button>
+          </div>
+        </form>
+      </div>
+      <div className={styles.footerLine} style={{ marginTop: 12 }}>
+        Atajo: Ctrl+Enter para enviar, Esc para cancelar.
+      </div>
     </div>
   );
 }

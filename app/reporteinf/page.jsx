@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import styles from './page.module.css';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
@@ -87,54 +88,97 @@ export default function ReporteInfraestructuraPage() {
     }
   };
 
+  const onCancel = () => {
+    if (enviando) return;
+    const go = confirm('¿Deseas cancelar y salir? Los datos sin guardar se perderán.');
+    if (go) router.push('/home');
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const btn = document.getElementById('btn-enviar-reporte');
+        if (btn && !btn.disabled) btn.click();
+      }
+      if (e.key === 'Escape') {
+        const btn = document.getElementById('btn-cancelar-reporte');
+        if (btn) btn.click();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enviando]);
+
   return (
-    <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24 }}>
-  <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver</Link>
-      </nav>
-      <h2>Reporte de Infraestructura</h2>
-      {user ? (
-        <p>
-          Quien se suscribe <strong>{nombreCompleto}</strong>, con cédula de identidad <strong>{user.cedula}</strong>, quien labora en la institución educativa CTP Mercedes Norte, en el puesto de
-          <strong> {user.posicion}</strong>, en condición <strong>{user.instancia}</strong>. Reporta:
-        </p>
-      ) : (
-        <p>Cargando datos del usuario...</p>
-      )}
+    <div className={styles.page}>
+      <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      <div className={styles.topbar}>
+        <Link href="/home" className={styles.back}>⟵ Volver</Link>
+      </div>
+      <div className={styles.brandrow}>
+        <div className={styles.brand}>MIPP+</div>
+        <div className={styles.logos} aria-hidden><span /></div>
+      </div>
+      <div className={styles.titleBanner}>Reporte de Infraestructura</div>
+      {/* Bloque de presentación estilo formulariopermiso */}
+      <div className={styles.presento}>
+        {user ? (
+          <div className={styles.chips}>
+            <span>Quien se suscribe</span>
+            <span className={styles.chip}>{nombreCompleto}</span>
+            <span>, con cédula de identidad</span>
+            <span className={styles.chip}>{user.cedula}</span>
+            <span>, quien labora en la institución educativa</span>
+            <span className={styles.chip}>CTP Mercedes Norte</span>
+            <span>, en el puesto de</span>
+            <span className={styles.chip}>{user.posicion}</span>
+            <span>, en condición de</span>
+            <span className={styles.chip}>{user.instancia}</span>
+            <span>, solicita:</span>
+          </div>
+        ) : (
+          <p>Inicia sesión para prellenar tus datos. <Link href="/login">Ir a login</Link></p>
+        )}
+      </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
-        <label>
-          Tipo de reporte:
-          <select value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)} style={{ marginLeft: 8 }}>
-            <option>No urgente</option>
-            <option>Normal</option>
-            <option>Muy urgente</option>
-          </select>
-        </label>
+      <div className={styles.formCard}>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Tipo de reporte</label>
+            <select className={styles.select} value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)}>
+              <option>No urgente</option>
+              <option>Normal</option>
+              <option>Muy urgente</option>
+            </select>
+          </div>
 
-        <label>
-          Reporte:
-          <textarea value={reporte} onChange={(e) => setReporte(e.target.value)} rows={5} style={{ width: '100%' }} placeholder="Describe el reporte..." />
-        </label>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Reporte</label>
+            <textarea className={styles.textarea} value={reporte} onChange={(e) => setReporte(e.target.value)} rows={5} placeholder="Describe el reporte..." />
+          </div>
 
-        <label>
-          Lugar: (sea especifico)
-          <input value={lugar} onChange={(e) => setLugar(e.target.value)} style={{ width: '100%' }} placeholder="Ej: Pabellón B, aula 7" />
-        </label>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Lugar (sea específico)</label>
+            <input className={styles.input} value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej: Pabellón B, aula 7" />
+          </div>
 
-        <p>
-          Presento el reporte a las <strong>{horaActual}</strong> del mes <strong>{mesActual}</strong> del año <strong>{anioActual}</strong> en Heredia, Mercedes Norte.
-        </p>
+          <div>
+            Presento el reporte a las <strong>{horaActual}</strong> del mes <strong>{mesActual}</strong> del año <strong>{anioActual}</strong> en Heredia, Mercedes Norte.
+          </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button type="submit" disabled={enviando} style={{ padding: '8px 12px', background: '#0ea5e9', color: 'white', borderRadius: 6 }}>
-            {enviando ? 'Enviando...' : 'Enviar reporte'}
-          </button>
-          {okMsg && <span style={{ color: '#16a34a' }}>{okMsg}</span>}
-          {errMsg && <span style={{ color: '#ef4444' }}>{errMsg}</span>}
-        </div>
-      </form>
+          <div className={styles.actions}>
+            <button id="btn-cancelar-reporte" type="button" onClick={onCancel} className={`${styles.btn}`}>Cancelar</button>
+            <button id="btn-enviar-reporte" type="submit" disabled={enviando} className={`${styles.btn} ${styles.btnPrimary}`}>
+              {enviando ? 'Enviando...' : 'Enviar reporte'}
+            </button>
+            {okMsg && <span className={styles.ok}>{okMsg}</span>}
+            {errMsg && <span className={styles.err}>{errMsg}</span>}
+          </div>
+        </form>
+      </div>
+      <div style={{ color:'#374151', marginTop: 12, fontSize: 13 }}>
+        Sugerencia: Describe claramente el problema y su ubicación exacta. Si es muy urgente, selecciona la prioridad adecuada.
+      </div>
     </div>
   );
 }

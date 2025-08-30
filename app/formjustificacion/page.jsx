@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import styles from './page.module.css';
 import { useRouter } from 'next/navigation';
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../lib/useCurrentUser";
@@ -46,8 +47,11 @@ const previousBusinessDaysCR = (todayYMD, count = 2) => {
 export default function FormJustificacion() {
   const router = useRouter();
   const { user: currentUser, loading: authLoading } = useCurrentUser();
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null); // users row
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [errorsUI, setErrorsUI] = useState({});
   const [misSolicitudes, setMisSolicitudes] = useState([]);
 
   const [conSolicitud, setConSolicitud] = useState(false);
@@ -92,6 +96,9 @@ export default function FormJustificacion() {
       return;
     }
   }, [authLoading, currentUser, router]);
+
+  // trigger mount animations once on client
+  useEffect(() => { setMounted(true); }, []);
 
   // Load user profile
   useEffect(() => {
@@ -141,6 +148,13 @@ export default function FormJustificacion() {
       ...prev,
       [name]: type === 'checkbox' ? checked : files ? files[0] : value,
     }));
+    // inline validation
+    if (name === 'fecha') setErrorsUI(p => ({ ...p, fecha: value ? undefined : 'Selecciona la fecha inicio' }));
+    if (name === 'fechaFin') setErrorsUI(p => ({ ...p, fechaFin: value ? undefined : 'Selecciona la fecha fin' }));
+    if (name === 'cantidad') {
+      const n = Number(value);
+      setErrorsUI(p => ({ ...p, cantidad: value && (!Number.isFinite(n) || n <= 0) ? 'Debe ser un número positivo' : undefined }));
+    }
   };
 
   // HH:MM helpers for picker values
@@ -239,7 +253,7 @@ export default function FormJustificacion() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validate();
+  const errs = validate();
     if (errs.length) { alert(errs.join('\n')); return; }
     setLoading(true);
 
@@ -252,6 +266,7 @@ export default function FormJustificacion() {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('cedula', user?.cedula || 'anon');
+        setUploading(true);
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         if (!res.ok) throw new Error(await res.text());
         const j = await res.json();
@@ -263,7 +278,7 @@ export default function FormJustificacion() {
       alert('No se pudo subir el adjunto: ' + (err.message || String(err)));
       setLoading(false);
       return;
-    }
+    } finally { setUploading(false); }
 
     const payload = {
       linked_solicitud_id: conSolicitud && solicitudSel ? Number(solicitudSel) : null,
@@ -309,95 +324,155 @@ export default function FormJustificacion() {
     }
   };
 
-  return (
-    <div style={{ maxWidth: 860, margin: '2rem auto', padding: 24 }}>
-  <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver al menú</Link>
-      </nav>
-      <h2>Formulario de justificación</h2>
+  const onCancel = () => {
+    if (loading || uploading) return;
+    const go = confirm('¿Deseas cancelar y salir? Los datos sin guardar se perderán.');
+    if (go) router.push('/home');
+  };
 
-      <div style={{ background:'#f7f7f7', padding:12, borderRadius:6, marginBottom:16 }}>
+  const submitDisabled = loading || uploading || !form.fecha || (form.esRango && !form.fechaFin) || (form.jornada === 'Media' && (!form.horaInicio || !form.horaFin));
+
+  // keyboard shortcuts: Ctrl+Enter to enviar, Esc to cancelar
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const btn = document.getElementById('btn-enviar-justificacion');
+        if (btn && !btn.disabled) btn.click();
+      }
+      if (e.key === 'Escape') {
+        const btn = document.getElementById('btn-cancelar-justificacion');
+        if (btn) btn.click();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loading, uploading]);
+
+  return (
+    <div className={`${styles.page} ${styles.pageEnter}`}>
+      <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      <div className={styles.topbar}>
+        <Link href="/home" className={styles.back}>⟵ Volver</Link>
+        <a href="#ayuda" className={styles.helpLink} title="Ver ayuda y preguntas frecuentes">Ayuda / FAQ</a>
+      </div>
+      <div className={styles.brandrow}>
+        <div className={styles.brand}>MIPP+</div>
+        <div className={styles.logos} aria-hidden><span /></div>
+      </div>
+      <div className={styles.titleBanner}>Formulario de Justificación de Inasistencia, Tardía o Salida</div>
+      <p className={styles.note}>
+        Recuerda justificar dentro de las 48 horas hábiles posteriores. Adjunta soporte si corresponde (citas, convocatorias), y completa con precisión las horas.
+      </p>
+      <hr className={styles.divider} />
+
+      <div className={styles.presento}>
         {user ? (
-          <p>
-            Quien se suscribe <strong>{nombreCompleto}</strong>, con cédula de identidad <strong>{user.cedula}</strong>, quien labora en la institución educativa CTP Mercedes Norte, en el puesto de <strong>{user.posicion}</strong>, en condición <strong>{user.instancia}</strong>.
-          </p>
+          <div className={styles.chips}>
+            <span>Quien se suscribe</span>
+            <span className={styles.chip}>{nombreCompleto}</span>
+            <span>, con cédula</span>
+            <span className={styles.chip}>{user.cedula}</span>
+            <span>, puesto</span>
+            <span className={styles.chip}>{user.posicion}</span>
+            <span>, condición</span>
+            <span className={styles.chip}>{user.instancia}</span>
+            <span>.</span>
+          </div>
         ) : (
           <p>Inicia sesión para prellenar tus datos.</p>
         )}
       </div>
 
-  <form onSubmit={handleSubmit} style={{ border:'1px solid #ddd', padding:16, borderRadius:8 }}>
+  <form onSubmit={handleSubmit} className={`${styles.formCard} ${mounted ? styles.animMount : ''}`}>
         {/* Con o sin solicitud */}
-        <div style={{ marginBottom:12 }}>
-          <label>¿Justifica una solicitud existente?</label>
-          <div style={{ display:'flex', gap:16, alignItems:'center', marginTop:6 }}>
+        <div className={styles.field}>
+          <label className={styles.lbl}>¿Justifica una solicitud existente?</label>
+          <div className={styles.row}>
             <label><input type="radio" name="conSolicitud" checked={conSolicitud} onChange={() => setConSolicitud(true)} /> Sí</label>
             <label><input type="radio" name="conSolicitud" checked={!conSolicitud} onChange={() => setConSolicitud(false)} /> No</label>
           </div>
           {conSolicitud && (
-            <div style={{ marginTop:8 }}>
-              <label>Selecciona la solicitud
-                <select value={solicitudSel} onChange={handleSelectSolicitud} style={{ display:'block', marginTop:6 }}>
-                  <option value="">-- Selecciona --</option>
-                  {misSolicitudes.map(s => {
-                    const lastDateStr = s.es_rango ? (s.fecha_fin || s.fecha_inicio) : s.fecha_inicio;
-                    const outOfWindow = !allowedSet.has(String(lastDateStr));
-                    const label = `#${s.id} • ${s.fecha_inicio}${s.es_rango ? ` → ${s.fecha_fin}` : ''} • ${s.jornada}${s.hora_inicio ? ` (${s.hora_inicio}${s.hora_fin ? ` - ${s.hora_fin}` : ''})` : ''}${outOfWindow ? ' • (fuera de plazo)' : ''}`;
-                    return (
-                      <option key={s.id} value={s.id} disabled={outOfWindow}>{label}</option>
-                    );
-                  })}
-                </select>
-              </label>
-              <small>Al seleccionar, se autorellenan los campos.</small>
+            <div className={styles.field}>
+              <label className={styles.lbl}>Selecciona la solicitud</label>
+              <select value={solicitudSel} onChange={handleSelectSolicitud} className={styles.select}>
+                <option value="">-- Selecciona --</option>
+                {misSolicitudes.map(s => {
+                  const lastDateStr = s.es_rango ? (s.fecha_fin || s.fecha_inicio) : s.fecha_inicio;
+                  const outOfWindow = !allowedSet.has(String(lastDateStr));
+                  const label = `#${s.id} • ${s.fecha_inicio}${s.es_rango ? ` → ${s.fecha_fin}` : ''} • ${s.jornada}${s.hora_inicio ? ` (${s.hora_inicio}${s.hora_fin ? ` - ${s.hora_fin}` : ''})` : ''}${outOfWindow ? ' • (fuera de plazo)' : ''}`;
+                  return (
+                    <option key={s.id} value={s.id} disabled={outOfWindow}>{label}</option>
+                  );
+                })}
+              </select>
+              <div className={styles.help}>Al seleccionar, se autorellenan los campos.</div>
             </div>
           )}
         </div>
 
         {/* Tipo general */}
-        <div style={{ marginBottom:12 }}>
-          <label>Tipo
-            <select name="tipoGeneral" value={form.tipoGeneral} onChange={handleChange} style={{ display:'block' }}>
-              <option>Salida</option>
-              <option>Ausencia</option>
-              <option>Tardía</option>
-              <option>Incapacidad</option>
-            </select>
-          </label>
+        <div className={styles.field}>
+          <label className={styles.lbl}>Tipo</label>
+          <select name="tipoGeneral" value={form.tipoGeneral} onChange={handleChange} className={styles.select}>
+            <option>Salida</option>
+            <option>Ausencia</option>
+            <option>Tardía</option>
+            <option>Incapacidad</option>
+          </select>
         </div>
 
-        {/* Fecha o rango */}
-        <div style={{ display:'flex', gap:12, alignItems:'end', marginBottom:12 }}>
-          <div>
-            <label>Fecha inicio <span style={{color:'red'}}>*</span>
-              <input type="date" name="fecha" value={form.fecha} onChange={handleChange} required style={{ display:'block' }} min={minAllowed} max={maxAllowed} />
-            </label>
+        {/* Barra de jornada arriba de fecha y horas */}
+        <div className={styles.grid}>
+          <div className={`${styles.field} ${styles['span-12']}`}>
+            <div className={styles.jornadaBar}>
+              <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de jornada</span>
+              <div className={styles.switchWrap} role="group" aria-label="Tipo de jornada">
+                <span className={styles.switchLabel}>Media jornada</span>
+                <label className={styles.switch} title={form.jornada === 'Media' ? 'Cambiar a jornada completa' : 'Cambiar a media jornada'}>
+                  <input type="checkbox" aria-checked={form.jornada === 'Completa'} checked={form.jornada === 'Completa'} onChange={toggleJornada} />
+                  <span className={styles.slider} />
+                </label>
+                <span className={styles.switchLabel}>Jornada completa</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tipo de fecha (switch estilo permisos) */}
+          <div className={`${styles.field} ${styles['span-12']}`}>
+            <div className={styles.jornadaBar}>
+              <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de fecha</span>
+              <div className={styles.switchWrap} role="group" aria-label="Tipo de fecha">
+                <span className={styles.switchLabel}>Solo una fecha</span>
+                <label className={styles.switch} title={form.esRango ? 'Cambiar a una sola fecha' : 'Cambiar a varias fechas'}>
+                  <input type="checkbox" aria-checked={form.esRango} checked={form.esRango} onChange={toggleFechaModo} />
+                  <span className={styles.slider} />
+                </label>
+                <span className={styles.switchLabel}>Varias fechas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Fecha o rango */}
+          <div className={`${styles.field} ${styles[form.esRango ? 'span-6' : 'span-4']}`}>
+            <label className={styles.lbl}>Fecha inicio</label>
+            <input type="date" name="fecha" value={form.fecha} onChange={handleChange} required className={styles.input} min={minAllowed} max={maxAllowed} />
+            {errorsUI.fecha && <div className={styles.error}>{errorsUI.fecha}</div>}
           </div>
           {form.esRango && (
-            <div>
-              <label>Fecha fin <span style={{color:'red'}}>*</span>
-                <input type="date" name="fechaFin" value={form.fechaFin} onChange={handleChange} required style={{ display:'block' }} min={form.fecha || minAllowed} max={maxAllowed} />
-              </label>
+            <div className={`${styles.field} ${styles['span-6']}`}>
+              <label className={styles.lbl}>Fecha fin</label>
+              <input type="date" name="fechaFin" value={form.fechaFin} onChange={handleChange} required className={styles.input} min={form.fecha || minAllowed} max={maxAllowed} />
+              {errorsUI.fechaFin && <div className={styles.error}>{errorsUI.fechaFin}</div>}
             </div>
           )}
-          <button type="button" onClick={toggleFechaModo}>{form.esRango ? 'Usar una sola fecha' : 'Usar rango de fechas'}</button>
         </div>
 
         {/* Jornada y horas */}
-        <div style={{ display:'flex', gap:12, alignItems:'end', marginBottom:12 }}>
-          <div>
-            <label>Jornada</label>
-            <div>
-              <button type="button" onClick={toggleJornada}>{form.jornada === 'Media' ? 'Cambiar a Jornada completa' : 'Cambiar a Media jornada'}</button>
-              <span style={{ marginLeft:8 }}>{form.jornada}</span>
-            </div>
-          </div>
+        <div className={styles.grid}>
           {form.jornada === 'Media' && (
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <div style={{ display:'flex', gap:12 }}>
-                <div>
-                  <label>Hora inicio <span style={{color:'red'}}>*</span></label>
+              <div className={`${styles.field} ${styles['span-6']}`}>
+                <label className={styles.lbl}>Hora inicio</label>
                   <TimePicker
                     ampm
                     minutesStep={5}
@@ -405,11 +480,11 @@ export default function FormJustificacion() {
                     onChange={(v) => setForm((p) => ({ ...p, horaInicio: toHHMM(v) }))}
                     minTime={minTimeDJ()}
                     maxTime={maxTimeDJ()}
-                    slotProps={{ textField: { required: true } }}
+                    slotProps={{ textField: { required: true, size:'small' } }}
                   />
-                </div>
-                <div>
-                  <label>Hora fin <span style={{color:'red'}}>*</span></label>
+              </div>
+              <div className={`${styles.field} ${styles['span-6']}`}>
+                <label className={styles.lbl}>Hora fin</label>
                   <TimePicker
                     ampm
                     minutesStep={5}
@@ -417,11 +492,11 @@ export default function FormJustificacion() {
                     onChange={(v) => setForm((p) => ({ ...p, horaFin: toHHMM(v) }))}
                     minTime={fromHHMM(form.horaInicio) || minTimeDJ()}
                     maxTime={maxTimeDJ()}
-                    slotProps={{ textField: { required: true } }}
+                    slotProps={{ textField: { required: true, size:'small' } }}
                   />
-                </div>
-                <div>
-                  <label>Hora de salida</label>
+              </div>
+              <div className={`${styles.field} ${styles['span-6']}`}>
+                <label className={styles.lbl}>Hora de salida</label>
                   <TimePicker
                     ampm
                     minutesStep={5}
@@ -430,91 +505,112 @@ export default function FormJustificacion() {
                     minTime={minTimeDJ()}
                     maxTime={maxTimeDJ()}
                   />
-                </div>
               </div>
             </LocalizationProvider>
           )}
         </div>
 
         {/* Cantidad */}
-        <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-          <label>{isProfesor ? 'Cantidad de lecciones' : 'Cantidad de horas'}
-            <input type="number" name="cantidad" value={form.cantidad} onChange={handleChange} min={0} step={1} style={{ display:'block' }} />
-          </label>
-          <div>
-            <label>Unidad</label>
-            <input value={isProfesor ? 'lecciones' : 'horas'} readOnly style={{ display:'block', width:120 }} />
+        <div className={styles.grid}>
+          <div className={`${styles.field} ${styles['span-6']}`}>
+            <label className={styles.lbl}>{isProfesor ? 'Cantidad de lecciones' : 'Cantidad de horas'}</label>
+            <input className={styles.input} type="number" name="cantidad" value={form.cantidad} onChange={handleChange} min={0} step={1} />
+            {errorsUI.cantidad && <div className={styles.error}>{errorsUI.cantidad}</div>}
+          </div>
+          <div className={`${styles.field} ${styles['span-6']}`}>
+            <label className={styles.lbl}>Unidad</label>
+            <input className={styles.input} value={isProfesor ? 'lecciones' : 'horas'} readOnly />
+            <div className={styles.help}>Se autodefine según tu puesto.</div>
           </div>
         </div>
 
         {/* Tipo de justificación */}
-        <div style={{ marginBottom:12 }}>
-          <label>Tipo de justificación
-            <select name="tipoJustificacion" value={form.tipoJustificacion} onChange={handleChange} style={{ display:'block' }}>
-              <option>Cita medica personal</option>
-              <option>Acompañar a cita familiar</option>
-              <option>Asistencia a convocatoria</option>
-              <option>Atención de asuntos personales</option>
-            </select>
-          </label>
+        <div className={styles.field}>
+          <label className={styles.lbl}>Tipo de justificación</label>
+          <select name="tipoJustificacion" value={form.tipoJustificacion} onChange={handleChange} className={styles.select}>
+            <option>Cita medica personal</option>
+            <option>Acompañar a cita familiar</option>
+            <option>Asistencia a convocatoria</option>
+            <option>Atención de asuntos personales</option>
+          </select>
         </div>
 
         {/* Dependiente del tipo */}
         {form.tipoJustificacion === 'Acompañar a cita familiar' && (
-          <div style={{ marginBottom:12 }}>
-            <label>Familiar <span style={{color:'red'}}>*</span>
-              <select name="familiar" value={form.familiar} onChange={handleChange} style={{ display:'block' }}>
-                <option value="">Seleccione</option>
-                <option>Padre</option>
-                <option>Madre</option>
-                <option>Hijos menores de edad</option>
-                <option>Esposo/a</option>
-                <option>Conyugue</option>
-                <option>Hijos discapacitados</option>
-              </select>
-            </label>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Familiar</label>
+            <select name="familiar" value={form.familiar} onChange={handleChange} className={styles.select}>
+              <option value="">Seleccione</option>
+              <option>Padre</option>
+              <option>Madre</option>
+              <option>Hijos menores de edad</option>
+              <option>Esposo/a</option>
+              <option>Conyugue</option>
+              <option>Hijos discapacitados</option>
+            </select>
+            {errorsUI.familiar && <div className={styles.error}>{errorsUI.familiar}</div>}
           </div>
         )}
 
         {['Cita medica personal','Asistencia a convocatoria','Acompañar a cita familiar'].includes(form.tipoJustificacion) && (
-          <div style={{ marginBottom:12 }}>
-            <label>Adjuntar documento <span style={{color:'red'}}>*</span>
-              <input type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} style={{ display:'block' }} />
-            </label>
+          <div className={styles.field}>
+            <label className={styles.lbl}>Adjuntar documento</label>
+            <input className={styles.input} type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} />
+            <span className={styles.hint}>
+              {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
+              {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}
+            </span>
+            {errorsUI.adjunto && <div className={styles.error}>{errorsUI.adjunto}</div>}
           </div>
         )}
 
         {/* Observaciones */}
-        <div style={{ marginBottom:12 }}>
-          <label style={{ display:'block' }}>Observaciones (opcional)
-            <textarea name="observaciones" value={form.observaciones} onChange={handleChange} rows={3} style={{ width:'100%' }} />
-          </label>
+        <div className={`${styles.field} ${styles['span-12']}`}>
+          <label className={styles.lbl}>Observaciones (opcional)</label>
+          <textarea name="observaciones" value={form.observaciones} onChange={handleChange} rows={4} className={styles.textarea} />
         </div>
 
         {/* Texto de presentación (igual que permisos) */}
-        <div style={{ background:'#f7f7f7', padding:10, borderRadius:6, marginBottom:12 }}>
-          <p>
-            {(() => {
-              const now = new Date();
-              const hora = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-              const dia = String(now.getDate()).padStart(2,'0');
-              const mes = String(now.getMonth()+1).padStart(2,'0');
-              const anio = now.getFullYear();
-              return (
-                <>Presento la solicitud a las <strong>{hora}</strong> del día <strong>{dia}</strong> del mes <strong>{mes}</strong> del año <strong>{anio}</strong>.</>
-              );
-            })()}
-          </p>
+        <div className={styles.footerLine}>
+          {(() => {
+            const now = new Date();
+            const hora = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            const dia = String(now.getDate()).padStart(2,'0');
+            const mes = String(now.getMonth()+1).padStart(2,'0');
+            const anio = now.getFullYear();
+            return (
+              <>Presento la justificación a las <strong>{hora}</strong> del día <strong>{dia}</strong> del mes <strong>{mes}</strong> del año <strong>{anio}</strong>.</>
+            );
+          })()}
         </div>
 
         {/* Acciones */}
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <button type="submit" disabled={loading} style={{ padding: 10, background: '#0f766e', color: 'white', border: 'none', borderRadius: 6 }}>
-            {loading ? 'Enviando…' : 'Enviar formulario'}
+        <div className={styles.actions}>
+          <button id="btn-cancelar-justificacion" type="button" onClick={onCancel} className={`${styles.btn} ${styles.btnSecondary}`}>Cancelar</button>
+          <button id="btn-enviar-justificacion" type="submit" disabled={submitDisabled} className={`${styles.btn} ${styles.btnPrimary}`}>
+            {(loading || uploading) ? 'Procesando…' : 'Enviar justificación'}
           </button>
-          <Link href="/home">Volver al menú</Link>
         </div>
       </form>
+
+      {/* Ayuda / FAQ */}
+      <section id="ayuda" className={styles.faqCard} aria-labelledby="faq-title-just">
+        <h2 id="faq-title-just" className={styles.faqTitle}>Ayuda rápida y preguntas frecuentes</h2>
+        <div className={styles.faqList}>
+          <details className={styles.faqItem}>
+            <summary>¿Qué se puede justificar?</summary>
+            <div className={styles.faqContent}>Ausencias, tardías y salidas, dentro de las 48 horas hábiles.</div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>¿Cuándo adjuntar documentos?</summary>
+            <div className={styles.faqContent}>Para citas médicas, convocatorias o acompañamiento familiar, adjunta el comprobante.</div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>¿Cómo ingreso las horas?</summary>
+            <div className={styles.faqContent}>Usa el selector de hora. Para media jornada, completa inicio y fin; para completa no se requieren horas.</div>
+          </details>
+        </div>
+      </section>
     </div>
   );
 }

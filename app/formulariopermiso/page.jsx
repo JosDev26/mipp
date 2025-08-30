@@ -82,6 +82,8 @@ export default function SolicitudPermiso() {
   const { user: currentUser, roles, loading: authLoading } = useCurrentUser();
   const [user, setUser] = useState(null); // {cedula, nombre, apellidos, posicion, instancia}
   const [loading, setLoading] = useState(false);
+  const [errorsUI, setErrorsUI] = useState({});
+  const [uploading, setUploading] = useState(false);
 
   const [form, setForm] = useState({
     tipoGeneral: "Salida", // Salida | Ausencia | Tardía | Incapacidad
@@ -165,6 +167,15 @@ export default function SolicitudPermiso() {
       ...prev,
       [name]: type === "checkbox" ? checked : files ? files[0] : value,
     }));
+    // simple inline validation triggers for key fields
+    if (name === 'fecha') {
+      if (!value) setErrorsUI((p) => ({ ...p, fecha: 'Selecciona la fecha de inicio' }));
+      else setErrorsUI((p) => ({ ...p, fecha: undefined }));
+    }
+    if (name === 'cantidad') {
+      const n = Number(value);
+      setErrorsUI((p) => ({ ...p, cantidad: value && (!Number.isFinite(n) || n <= 0) ? 'Debe ser un número positivo' : undefined }));
+    }
   };
 
   const toggleFechaModo = () => setForm((p) => ({ ...p, esRango: !p.esRango }));
@@ -178,7 +189,8 @@ export default function SolicitudPermiso() {
       const { s, e } = normalizeTimes(next.horaInicio, next.horaFin);
       next.horaInicio = s; next.horaFin = e;
     } else {
-      next.horaSalida = '';
+  // Limpiar hora de salida cuando es jornada completa
+  next.horaSalida = '';
     }
     return next;
   });
@@ -228,6 +240,16 @@ export default function SolicitudPermiso() {
     // campos profesor/funcionario
     if (form.cantidad && Number(form.cantidad) <= 0) errors.push("Cantidad debe ser positiva");
 
+    // reflect first errors near fields
+    const ui = {};
+    for (const msg of errors) {
+      if (msg.includes('fecha')) ui.fecha = ui.fecha || msg;
+      if (msg.includes('hora')) ui.hora = ui.hora || msg;
+      if (msg.includes('adjuntar') || msg.includes('documento')) ui.adjunto = ui.adjunto || msg;
+      if (msg.includes('Cantidad')) ui.cantidad = ui.cantidad || msg;
+      if (msg.includes('familiar')) ui.familiar = ui.familiar || msg;
+    }
+    setErrorsUI(ui);
     return errors;
   };
 
@@ -256,14 +278,15 @@ export default function SolicitudPermiso() {
   let adjunto_url = null;
   let adjunto_path = null;
     let adjunto_mime = null;
-    try {
+  try {
       if (form.adjunto) {
         const file = form.adjunto;
         adjunto_mime = file.type || null;
         const fd = new FormData();
         fd.append('file', file);
         fd.append('cedula', cedula || 'anon');
-        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    setUploading(true);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
         if (!res.ok) {
           const txt = await res.text();
           throw new Error(txt || 'upload failed');
@@ -277,7 +300,7 @@ export default function SolicitudPermiso() {
       alert('No se pudo subir el adjunto. Error: ' + (uploadErr.message || String(uploadErr)));
       setLoading(false);
       return;
-    }
+  } finally { setUploading(false); }
 
     const payload = {
       user_cedula: cedula,
@@ -339,6 +362,41 @@ export default function SolicitudPermiso() {
     setForm((p) => ({ ...p, unidad: isProfesor ? "lecciones" : "horas" }));
   }, [isProfesor]);
 
+  // keyboard shortcuts: Ctrl+Enter to enviar, Esc to cancelar
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const btn = document.getElementById('btn-enviar-solicitud');
+        if (btn && !btn.disabled) btn.click();
+      }
+      if (e.key === 'Escape') {
+        const btn = document.getElementById('btn-cancelar-solicitud');
+        if (btn) btn.click();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const onCancel = () => {
+    if (loading || uploading) return;
+    const go = confirm('¿Deseas cancelar y salir? Los datos sin guardar se perderán.');
+    if (go) router.push('/home');
+  };
+
+  // simple disabled state if there are errors or mandatory fields missing
+  const submitDisabled = loading || uploading || !form.fecha || (form.jornada === 'Media' && (!form.horaInicio || !form.horaFin));
+
+  // Layout helpers for grid alignment
+  const dateStartSpan = form.esRango
+    ? (form.jornada === 'Media' ? 'span-3' : 'span-6')
+    : 'span-4';
+  const dateEndSpan = form.esRango
+    ? (form.jornada === 'Media' ? 'span-3' : 'span-6')
+    : 'span-4';
+  const qtySpan = (form.jornada === 'Completa' && form.esRango) ? 'span-6' : 'span-4';
+  const unidadSpan = (form.jornada === 'Completa' && form.esRango) ? 'span-6' : 'span-4';
+
   return (
     <div className={styles.page}>
   {/* Fuente global desde layout */}
@@ -347,6 +405,7 @@ export default function SolicitudPermiso() {
       {/* Encabezado estilo maqueta */}
       <div className={styles.topbar}>
         <Link href="/home" className={styles.back}>⟵ Volver</Link>
+  <a href="#ayuda" className={styles.helpLink} title="Ver ayuda y preguntas frecuentes">Ayuda / FAQ</a>
       </div>
       <div className={styles.brandrow}>
         <div className={styles.brand}>MIPP+</div>
@@ -397,10 +456,57 @@ export default function SolicitudPermiso() {
           </label>
         </div>
 
-        {/* Fecha o rango */}
+        {/* Barra de jornada arriba de fecha y horas */}
         <div className={styles.grid}>
-          <div className={`${styles.field} ${styles['span-4']}`}>
-            <label className={styles.lbl}>Fecha</label>
+          {/* Tipo de jornada (arriba) */}
+          <div className={`${styles.field} ${styles['span-12']}`}>
+            <div className={styles.jornadaBar}>
+              <div className={styles.jornadaLeft}>
+                <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de jornada</span>
+              </div>
+              <div className={styles.switchWrap} role="group" aria-label="Tipo de jornada">
+                <span className={styles.switchLabel}>Media jornada</span>
+                <label className={styles.switch} title={form.jornada === 'Media' ? 'Cambiar a jornada completa' : 'Cambiar a media jornada'}>
+                  <input
+                    type="checkbox"
+                    aria-checked={form.jornada === 'Completa'}
+                    checked={form.jornada === 'Completa'}
+                    onChange={toggleJornada}
+                  />
+                  <span className={styles.slider} />
+                </label>
+                <span className={styles.switchLabel}>Jornada completa</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tipo de fecha (nuevo) */}
+          <div className={`${styles.field} ${styles['span-12']}`}>
+            <div className={styles.jornadaBar}>
+              <div className={styles.jornadaLeft}>
+                <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de fecha</span>
+              </div>
+              <div className={styles.switchWrap} role="group" aria-label="Tipo de fecha">
+                <span className={styles.switchLabel}>Solo una fecha</span>
+                <label className={styles.switch} title={form.esRango ? 'Cambiar a una sola fecha' : 'Cambiar a varias fechas'}>
+                  <input
+                    type="checkbox"
+                    aria-checked={form.esRango}
+                    checked={form.esRango}
+                    onChange={toggleFechaModo}
+                  />
+                  <span className={styles.slider} />
+                </label>
+                <span className={styles.switchLabel}>Varias fechas</span>
+              </div>
+            </div>
+          </div>
+
+      {/* Fecha o rango: si es rango y jornada es Media => 3+3+6 (con Hora).
+        Si es rango y jornada es Completa => 6+6 (sin Hora).
+      */}
+      <div className={`${styles.field} ${styles[dateStartSpan]}`}>
+            <label className={styles.lbl}>Fecha inicio</label>
             <input title="Selecciona la fecha de inicio del permiso" className={styles.input} type="date" name="fecha" value={form.fecha} onChange={e => {
                 const val = e.target.value;
                 const d = new Date(val);
@@ -412,9 +518,10 @@ export default function SolicitudPermiso() {
                 }
                 handleChange(e);
               }} required min={todayYMD} />
+            {errorsUI.fecha && <div className={styles.error}>{errorsUI.fecha}</div>}
           </div>
           {form.esRango && (
-            <div className={`${styles.field} ${styles['span-4']}`}>
+            <div className={`${styles.field} ${styles[dateEndSpan]}`}>
               <label className={styles.lbl}>Fecha fin</label>
               <input className={styles.input} type="date" name="fechaFin" value={form.fechaFin} onChange={e => {
       const val = e.target.value;
@@ -509,64 +616,55 @@ export default function SolicitudPermiso() {
             </LocalizationProvider>
           )}
 
-          {/* Tipo de jornada */}
-          <div className={`${styles.field} ${styles['span-2']}`}>
-            <label className={styles.lbl}>Tipo de jornada</label>
-            <div className={styles.btnGroup}>
-              <button type="button" onClick={toggleJornada} className={`${styles.btn} ${styles.btnPrimary}`}>
-                {form.jornada === "Media" ? "Cambiar a Completa" : "Cambiar a Media"}
-              </button>
-              <span className={styles.badge}>{form.jornada === 'Media' ? 'Media' : 'Jornada Laboral Completa'}</span>
-            </div>
-          </div>
+          {/* (Tipo de jornada movido arriba) */}
 
           {/* Cantidad segun rol */}
-          <div className={`${styles.field} ${styles['span-4']}`}>
+          <div className={`${styles.field} ${styles[qtySpan]}`}>
             <label className={styles.lbl}>{isProfesor ? 'Cantidad de lecciones' : 'Cantidad de horas'}</label>
             <input className={styles.input} type="number" name="cantidad" value={form.cantidad} onChange={handleChange} min={0} step={1} />
           </div>
-          <div className={`${styles.field} ${styles['span-4']}`}>
+          <div className={`${styles.field} ${styles[unidadSpan]}`}>
             <label className={styles.lbl}>Unidad</label>
             <input className={styles.input} value={isProfesor ? 'lecciones' : 'horas'} readOnly />
+            <div className={styles.help}>Se autodefine según tu puesto.</div>
           </div>
 
           {/* Hora de salida */}
-          <div className={`${styles.field} ${styles['span-4']}`}>
-            <label className={styles.lbl}>Hora de salida del centro educativo</label>
-            {form.jornada === 'Media' ? (
+          {form.jornada === 'Media' && (
+            <div className={`${styles.field} ${styles['span-4']}`}>
+              <label className={styles.lbl}>Hora de salida del centro educativo</label>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <div className={styles.picker}>
-                <TimePicker
-                  ampm
-                  minutesStep={STEP_MINUTES}
-                  value={toDayjsFromHHMM(form.horaSalida) || null}
-                  onChange={(newVal) => {
-                    const v = clampTime(toHHMMFromDayjs(newVal));
-                    setForm((p) => ({ ...p, horaSalida: v || '' }));
-                  }}
-                  minTime={minTimeDJ()}
-                  maxTime={maxTimeDJ()}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'small',
-                      margin: 'dense',
-                      variant: 'outlined',
-                      inputProps: { 'aria-label': 'Hora de salida' },
-                      sx: {
-                        minWidth: 0,
-                        '& .MuiInputBase-input': { padding: '5px 5px' },
-                        '& .MuiOutlinedInput-root': { borderRadius: '0px' },
+                  <TimePicker
+                    ampm
+                    minutesStep={STEP_MINUTES}
+                    value={toDayjsFromHHMM(form.horaSalida) || null}
+                    onChange={(newVal) => {
+                      const v = clampTime(toHHMMFromDayjs(newVal));
+                      setForm((p) => ({ ...p, horaSalida: v || '' }));
+                    }}
+                    minTime={minTimeDJ()}
+                    maxTime={maxTimeDJ()}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        margin: 'dense',
+                        variant: 'outlined',
+                        inputProps: { 'aria-label': 'Hora de salida' },
+                        sx: {
+                          minWidth: 0,
+                          '& .MuiInputBase-input': { padding: '10px 12px' },
+                          '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
                 </div>
               </LocalizationProvider>
-            ) : (
-              <input className={styles.input} value="" placeholder="No aplica para jornada completa" readOnly />
-            )}
-          </div>
+              {errorsUI.hora && <div className={styles.error}>{errorsUI.hora}</div>}
+            </div>
+          )}
         </div>
 
         {/* Tipo de solicitud */}
@@ -602,7 +700,11 @@ export default function SolicitudPermiso() {
           <div className={styles.field}>
             <label className={styles.lbl}>Adjuntar documento</label>
             <input className={styles.input} type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} />
-            <span className={styles.hint} title="Se permiten imágenes (jpg, png), PDF y Word">Se permiten imágenes (JPG, PNG), PDF y Word</span>
+            <span className={styles.hint} title="Se permiten imágenes (jpg, png), PDF y Word">
+              {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
+              {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}
+            </span>
+            {errorsUI.adjunto && <div className={styles.error}>{errorsUI.adjunto}</div>}
           </div>
         )}
 
@@ -619,11 +721,45 @@ export default function SolicitudPermiso() {
 
         {/* Acciones */}
         <div className={styles.actions}>
-          <button type="submit" disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`} title="Envia tu solicitud">
-            {loading ? "Enviando solicitud…" : "Enviar solicitud"}
+          <button id="btn-cancelar-solicitud" type="button" onClick={onCancel} className={`${styles.btn} ${styles.btnSecondary}`} title="Cancelar y volver">
+            Cancelar
+          </button>
+          <button id="btn-enviar-solicitud" type="submit" disabled={submitDisabled} className={`${styles.btn} ${styles.btnPrimary}`} title="Envia tu solicitud (Ctrl+Enter)">
+            {(loading || uploading) ? "Procesando…" : "Enviar solicitud"}
           </button>
         </div>
       </form>
+
+      {/* Ayuda / FAQ */}
+      <section id="ayuda" className={styles.faqCard} aria-labelledby="faq-title">
+        <h2 id="faq-title" className={styles.faqTitle}>Ayuda rápida y preguntas frecuentes</h2>
+        <div className={styles.faqList}>
+          <details className={styles.faqItem}>
+            <summary>¿Qué debo adjuntar para “Cita médica” o “Convocatoria”?</summary>
+            <div className={styles.faqContent}>
+              Adjunta una foto o PDF del comprobante (cita, orden, o convocatoria). Tamaños soportados: JPG, PNG, PDF y Word.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>¿Cómo se calcula “Media jornada”?</summary>
+            <div className={styles.faqContent}>
+              Media jornada es un rango máximo de 4 horas dentro del horario permitido ({TIME_MIN}–{TIME_MAX}). Selecciona “Jornada completa” si corresponde a todo el día.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>No puedo elegir fines de semana</summary>
+            <div className={styles.faqContent}>
+              Las solicitudes se realizan para días hábiles. Si necesitas un caso especial, comunícate con administración.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>¿Puedo editar o cancelar después de enviar?</summary>
+            <div className={styles.faqContent}>
+              Puedes volver a la página principal y contactar a administración para solicitar cambios si ya fue enviada.
+            </div>
+          </details>
+        </div>
+      </section>
     </div>
   );
 }

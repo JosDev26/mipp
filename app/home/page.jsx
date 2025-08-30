@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import useCurrentUser from '../../lib/useCurrentUser';
-import LoadingOverlay from '../../components/LoadingOverlay';
+import styles from './page.module.css';
 
 export default function HomePage() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function HomePage() {
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(false);
   const [filterTipo, setFilterTipo] = useState('Todos');
   const [showAll, setShowAll] = useState(false);
+  const [animateTick, setAnimateTick] = useState(0);
 
   const isAdmin = Array.isArray(roles) && roles.includes('admin');
   const isInfraManager = Array.isArray(roles) && roles.includes('infra_manager');
@@ -232,168 +233,213 @@ export default function HomePage() {
   };
 
   const globalLoading = authLoading || loadingSolicitudes || (!showAll && (!cedula || authLoading));
+  const hasRole = Array.isArray(roles) && roles.length > 0;
+  const themeClass = hasRole ? styles.themeWithRole : styles.themeNoRole;
 
   if (globalLoading) {
     return (
-      <div style={{ minHeight: '100vh' }}>
-        <LoadingOverlay show={true} text="Cargando datos..." />
+  <div className={`${styles.page} ${themeClass}`}>
+        <div className={styles.shell}>
+          <header className={styles.header}>
+            <div className={styles.brandWrap}>
+              <div className={styles.brand}>MIPP+</div>
+              <div className={styles.welcome}>Cargando…</div>
+            </div>
+            <span className={styles.srOnly}>Loading</span>
+          </header>
+          <section className={styles.actionsGrid} aria-hidden>
+            <div className={styles.actionCard} />
+            <div className={styles.actionCard} />
+            <div className={styles.actionCard} />
+            <div className={styles.actionCard} />
+          </section>
+          <h3 className={styles.sectionTitle}>Historial</h3>
+          <div className={styles.skeletonList}>
+            <div className={styles.skeleton} />
+            <div className={styles.skeleton} />
+            <div className={styles.skeleton} />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: '2rem auto', padding: 20 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <h2>Bienvenido{userName ? `, ${userName}` : ''}</h2>
-          <p style={{ color: '#555' }}>{cedula ? `Cédula: ${cedula}` : 'No has iniciado sesión'}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link href={isAdmin ? "/gestionarsolicitudes" : "/formulariopermiso"} style={{ padding: '8px 12px', background: '#0ea5e9', color: 'white', borderRadius: 6, textDecoration: 'none' }}>{isAdmin ? 'Gestionar solicitud de permisos' : 'Crear solicitud de permiso'}</Link>
-          <Link href={isAdmin ? "/gestionarjustificaciones" : "/formjustificacion"} style={{ padding: '8px 12px', background: '#7c3aed', color: 'white', borderRadius: 6, textDecoration: 'none' }}>{isAdmin ? 'Gestionar justificaciones' : 'Crear justificación'}</Link>
-          <Link href={isAdmin ? "/gestionarmarca" : "/omisionmarca"} style={{ padding: '8px 12px', background: '#059669', color: 'white', borderRadius: 6, textDecoration: 'none' }}>{isAdmin ? 'Gestionar justificaciones de omision de marca' : 'Justificar omision de marca'}</Link>
+    <div className={`${styles.page} ${styles.enter} ${themeClass}`}>
+      <div className={styles.shell}>
+        <header className={styles.header}>
+          <div className={styles.brandWrap}>
+            <div className={styles.brand}>MIPP+</div>
+          </div>
+          <div className={styles.headerCenter}>
+            <div className={styles.welcome}>Bienvenido/a</div>
+            <h1 className={styles.userTitle}>{userName || 'Usuario'}</h1>
+          </div>
+          <button
+            className={styles.logoutIconBtn}
+            onClick={handleLogout}
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h3"/>
+              <path d="M16 17l5-5-5-5"/>
+              <path d="M21 12H9"/>
+            </svg>
+            <span className={styles.tooltip}>Cerrar sesión</span>
+          </button>
+        </header>
 
-          {isAdmin && (
-            <Link href="/gestionarinfra" style={{ padding: '8px 12px', background: '#f97316', color: 'white', borderRadius: 6, textDecoration: 'none' }}>Gestionar reportes de infraestructura</Link>
+        <section className={styles.hero}>
+          <h1>¿Qué deseas hacer hoy?</h1>
+          <p>Acciones rápidas y tu historial en un vistazo.</p>
+        </section>
+
+        <section className={styles.actionsGrid}>
+          <Link className={styles.actionCard} href={isAdmin ? "/gestionarsolicitudes" : "/formulariopermiso"}>
+            <div className={`${styles.actionIcon} ${styles.actBlue}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+              </svg>
+            </div>
+            <div className={styles.actionTitle}>{isAdmin ? 'Gestionar permisos' : 'Solicitar permiso'}</div>
+            <div className={styles.actionDesc}>Salida, Ausencia, Tardía o Incapacidad</div>
+          </Link>
+          <Link className={styles.actionCard} href={isAdmin ? "/gestionarjustificaciones" : "/formjustificacion"}>
+            <div className={`${styles.actionIcon} ${styles.actPurple}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+            <div className={styles.actionTitle}>{isAdmin ? 'Gestionar justificaciones' : 'Justificar ausencia'}</div>
+            <div className={styles.actionDesc}>Inasistencia, tardía o salida</div>
+          </Link>
+          <Link className={styles.actionCard} href={isAdmin ? "/gestionarmarca" : "/omisionmarca"}>
+            <div className={`${styles.actionIcon} ${styles.actGreen}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="13" r="8"/>
+                <path d="M12 9v5l3 2"/>
+                <path d="M16 3l1 3"/>
+                <path d="M8 3l-1 3"/>
+              </svg>
+            </div>
+            <div className={styles.actionTitle}>{isAdmin ? 'Gestionar omisiones' : 'Omisión de marca'}</div>
+            <div className={styles.actionDesc}>Registra una omisión de marca</div>
+          </Link>
+          {(isAdmin || isInfraManager) ? (
+            <Link className={styles.actionCard} href="/gestionarinfra">
+              <div className={`${styles.actionIcon} ${styles.actOrange}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 21h18"/>
+                  <rect x="3" y="10" width="6" height="7" rx="1"/>
+                  <rect x="15" y="7" width="6" height="10" rx="1"/>
+                  <path d="M9 3h6v4H9z"/>
+                </svg>
+              </div>
+              <div className={styles.actionTitle}>Gestionar infraestructura</div>
+              <div className={styles.actionDesc}>Responde y da seguimiento</div>
+            </Link>
+          ) : (
+            <Link className={styles.actionCard} href="/reporteinf">
+              <div className={`${styles.actionIcon} ${styles.actOrange}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 21h16"/>
+                  <path d="M4 17l8-8 8 8"/>
+                  <path d="M12 9v12"/>
+                </svg>
+              </div>
+              <div className={styles.actionTitle}>Reporte de infraestructura</div>
+              <div className={styles.actionDesc}>Reporta un problema o daño</div>
+            </Link>
           )}
           {!isAdmin && isInfraManager && (
-            <>
-              <Link href="/gestionarinfra" style={{ padding: '8px 12px', background: '#f97316', color: 'white', borderRadius: 6, textDecoration: 'none' }}>Gestionar reportes de infraestructura</Link>
-              <Link href="/reporteinf" style={{ padding: '8px 12px', background: '#fb923c', color: 'white', borderRadius: 6, textDecoration: 'none' }}>Reportar daño de infraestructura</Link>
-            </>
+            <Link className={styles.actionCard} href="/reporteinf">
+              <div className={`${styles.actionIcon} ${styles.actOrange}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 9h18M3 15h18M7.5 3v18M16.5 3v18"/>
+                </svg>
+              </div>
+              <div className={styles.actionTitle}>Reportar daño</div>
+              <div className={styles.actionDesc}>Crear nuevo reporte</div>
+            </Link>
           )}
-          {!isAdmin && !isInfraManager && (
-            <Link href="/reporteinf" style={{ padding: '8px 12px', background: '#f97316', color: 'white', borderRadius: 6, textDecoration: 'none' }}>Reporte infraestructura</Link>
-          )}
-
           {isAdminOrViewer && (
-            <Link href="/solicitudesresueltas" style={{ padding: '8px 12px', borderRadius: 6, background: '#334155', color:'#fff', textDecoration:'none' }}>Solicitudes resueltas</Link>
+            <Link className={styles.actionCard} href="/solicitudesresueltas">
+              <div className={`${styles.actionIcon} ${styles.actBlue}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 7h6l2 2h8v10a2 2 0 0 1-2 2H4V7z"/>
+                </svg>
+              </div>
+              <div className={styles.actionTitle}>Solicitudes resueltas</div>
+              <div className={styles.actionDesc}>Histórico de solicitudes resueltas</div>
+            </Link>
           )}
-
-          {/* Historial para usuario normal */}
-          {!isAdminOrViewer && (
-            <button onClick={() => { setShowAll(true); fetchSolicitudes(); }} style={{ padding: '8px 12px', borderRadius: 6 }}>Historial de mis solicitudes</button>
-          )}
-
-          {/* Toggle de viewer: pendientes globales <-> historial personal */}
-          {isViewer && (
-            !viewerPersonal ? (
-              <button onClick={() => { setViewerPersonal(true); setShowAll(true); }} style={{ padding: '8px 12px', borderRadius: 6 }}>Historial de mis solicitudes</button>
-            ) : (
-              <button onClick={() => setViewerPersonal(false)} style={{ padding: '8px 12px', borderRadius: 6 }}>Ver pendientes</button>
-            )
-          )}
-
-          {/* Administrar personal: staff_manager o admin */}
           {Array.isArray(roles) && (roles.includes('staff_manager') || roles.includes('admin')) && (
-            <Link href="/admin" style={{ padding: '8px 12px', background: '#06b6d4', color: 'white', borderRadius: 6, textDecoration: 'none' }}>Administrar personal</Link>
+            <Link className={styles.actionCard} href="/admin">
+              <div className={`${styles.actionIcon} ${styles.actPurple}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M16 11c1.66 0 3-1.79 3-4s-1.34-4-3-4-3 1.79-3 4 1.34 4 3 4z"/>
+                  <path d="M8 13c2.21 0 4-2.24 4-5s-1.79-5-4-5S4 5.24 4 8s1.79 5 4 5z"/>
+                  <path d="M6 22v-2c0-2.21 1.79-4 4-4h0"/>
+                  <path d="M14 22v-2c0-2.21 1.79-4 4-4h0"/>
+                </svg>
+              </div>
+              <div className={styles.actionTitle}>Administrar personal</div>
+              <div className={styles.actionDesc}>Roles, sesiones y perfiles</div>
+            </Link>
           )}
+        </section>
 
-          <button onClick={handleLogout} style={{ padding: '8px 12px', borderRadius: 6, background: '#ef4444', color: 'white' }}>Cerrar sesión</button>
-        </div>
-      </header>
-
-      <section style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label>Filtro por tipo:
-          <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} style={{ marginLeft: 8 }}>
-            {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        {isAdmin && (
-          <label>
-            Ordenar:
-            <select value={adminOrder} onChange={(e) => setAdminOrder(e.target.value)} style={{ marginLeft: 8 }}>
-              <option value="newest">Más nuevos</option>
-              <option value="oldest">Más antiguos</option>
+        <section className={styles.toolbar}>
+          <label>Filtro por tipo:
+            <select
+              className={styles.select}
+              value={filterTipo}
+              onChange={(e) => { setFilterTipo(e.target.value); setAnimateTick(t => t + 1); }}
+            >
+              {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
-        )}
-        <label style={{ marginLeft: 12 }}>
-          Mostrar: <strong>{showAll ? 'Historial de mis solicitudes' : 'Mis solicitudes'}</strong>
-        </label>
-        <button onClick={() => { setShowAll(false); fetchSolicitudes(); }} style={{ marginLeft: 'auto' }}>Refrescar</button>
-      </section>
-
-      <main>
-        {false ? <p /> : (
-          isAdminOrViewer ? (
-            viewerPersonal && isViewer ? (
-              <div style={{ display: 'grid', gap: 12 }}>
-                {myHistoryForViewer.length === 0 ? <p style={{ color: '#666' }}>No hay solicitudes.</p> : myHistoryForViewer.map((s) => {
-                  const Card = (
-                    <article style={{ border: '1px solid #e5e7eb', padding: 12, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{s.tipo_display}</div>
-                        <div style={{ color: '#555' }}>{s.fecha_inicio}{s.es_rango ? ` → ${s.fecha_fin}` : ''} • {s.jornada || ''} {s.kind ? `• ${s.kind}` : ''}</div>
-                        <div style={{ color: '#444', marginTop: 6 }}>{s.observaciones || ''}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ width: 12, height: 12, borderRadius: 6, background: statusColor(s.estado) }} title={s.estado || 'Estado desconocido'} />
-                        <div style={{ minWidth: 140, textAlign: 'right', color: '#333' }}>{s.estado || 'Sin estado'}</div>
-                      </div>
-                    </article>
-                  );
-                  let href = `/justificaciones/${s.id}`;
-                  if (s.kind === 'Permiso') href = `/solicitudes/${s.id}`;
-                  if (s.kind === 'Omisión de marca') href = `/omisionmarca/${s.id}`;
-                  if (s.kind === 'Infraestructura') href = `/reporteinf/${s.id}`;
-                  return (
-                    <Link key={`${s.kind}-${s.id}`} href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
-                      {Card}
-                    </Link>
-                  );
-                })}
-              </div>
+          {isAdmin && (
+            <label>
+              Ordenar:
+              <select className={styles.select} value={adminOrder} onChange={(e) => setAdminOrder(e.target.value)}>
+                <option value="newest">Más nuevos</option>
+                <option value="oldest">Más antiguos</option>
+              </select>
+            </label>
+          )}
+          <span style={{ marginLeft: 6 }}>Mostrando: <strong>{showAll ? 'Historial de mis solicitudes' : 'Mis solicitudes'}</strong></span>
+          <button className={`${styles.pillBtn} ${styles.pillGhost}`} onClick={() => { setShowAll(false); fetchSolicitudes(); }}>Refrescar</button>
+          {!isAdminOrViewer && (
+            <button className={styles.pillBtn} onClick={() => { setShowAll(true); fetchSolicitudes(); }}>Ver historial</button>
+          )}
+          {isViewer && (
+            !viewerPersonal ? (
+              <button className={styles.pillBtn} onClick={() => { setViewerPersonal(true); setShowAll(true); }}>Historial personal</button>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f3f4f6' }}>
-                      <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #e5e7eb' }}>Tipo</th>
-                      <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #e5e7eb' }}>Ingresado</th>
-                      <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #e5e7eb' }}>Funcionario</th>
-                      <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #e5e7eb' }}>Detalle</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedForView.length === 0 ? (
-                      <tr><td colSpan={4} style={{ padding:12, color:'#666' }}>No hay registros.</td></tr>
-                    ) : sortedForView.map((s) => {
-                      const dt = s.createdAt ? new Date(s.createdAt) : null;
-                      const fecha = dt ? dt.toLocaleDateString() : '—';
-                      const hora = dt ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                      let href = `/justificaciones/${s.id}`;
-                      if (s.kind === 'Permiso') href = `/solicitudes/${s.id}`;
-                      if (s.kind === 'Omisión de marca') href = `/omisionmarca/${s.id}`;
-                      if (s.kind === 'Infraestructura') href = `/reporteinf/${s.id}`;
-                      return (
-                        <tr key={`${s.kind}-${s.id}`} style={{ borderBottom:'1px solid #f3f4f6' }}>
-                          <td style={{ padding: 8 }}>{s.kind}</td>
-                          <td style={{ padding: 8 }}>{fecha} {hora && `• ${hora}`}</td>
-                          <td style={{ padding: 8 }}>{s.solicitante || '—'}</td>
-                          <td style={{ padding: 8 }}>
-                            <Link href={href} style={{ color:'#2563eb' }}>Abrir</Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <button className={styles.pillBtn} onClick={() => setViewerPersonal(false)}>Ver pendientes</button>
             )
-          ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {filtered.length === 0 ? <p style={{ color: '#666' }}>No hay solicitudes.</p> : filtered.map((s) => {
+          )}
+          {/* Administrar personal moved to quick actions */}
+        </section>
+
+        <h3 className={styles.sectionTitle}>Historial</h3>
+    {isAdminOrViewer ? (
+          viewerPersonal && isViewer ? (
+      <div className={`${styles.cards} ${styles.listAnimate}`} key={`list-${animateTick}`}>
+              {myHistoryForViewer.length === 0 ? <div className={styles.empty}>No hay solicitudes.</div> : myHistoryForViewer.map((s) => {
                 const Card = (
-                  <article style={{ border: '1px solid #e5e7eb', padding: 12, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                  <article className={styles.card}>
                     <div>
-                      <div style={{ fontWeight: 600 }}>{s.tipo_display}</div>
-                      <div style={{ color: '#555' }}>{s.fecha_inicio}{s.es_rango ? ` → ${s.fecha_fin}` : ''} • {s.jornada || ''} {s.kind ? `• ${s.kind}` : ''}</div>
+                      <div className={styles.cardTitle}>{s.tipo_display}</div>
+                      <div className={styles.cardMeta}>{s.fecha_inicio}{s.es_rango ? ` → ${s.fecha_fin}` : ''} • {s.jornada || ''} {s.kind ? `• ${s.kind}` : ''}</div>
                       <div style={{ color: '#444', marginTop: 6 }}>{s.observaciones || ''}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <div style={{ width: 12, height: 12, borderRadius: 6, background: statusColor(s.estado) }} title={s.estado || 'Estado desconocido'} />
-                      <div style={{ minWidth: 140, textAlign: 'right', color: '#333' }}>{s.estado || 'Sin estado'}</div>
+                    <div className={styles.statusWrap}>
+                      <div className={styles.statusDot} style={{ background: statusColor(s.estado) }} />
+                      <div className={styles.statusText}>{s.estado || 'Sin estado'}</div>
                     </div>
                   </article>
                 );
@@ -408,9 +454,72 @@ export default function HomePage() {
                 );
               })}
             </div>
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={`${styles.table} ${styles.listAnimateTable}`} key={`table-${animateTick}`}>
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Ingresado</th>
+                    <th>Funcionario</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedForView.length === 0 ? (
+                    <tr><td colSpan={4} className={styles.empty}>No hay registros.</td></tr>
+                  ) : sortedForView.map((s) => {
+                    const dt = s.createdAt ? new Date(s.createdAt) : null;
+                    const fecha = dt ? dt.toLocaleDateString() : '—';
+                    const hora = dt ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    let href = `/justificaciones/${s.id}`;
+                    if (s.kind === 'Permiso') href = `/solicitudes/${s.id}`;
+                    if (s.kind === 'Omisión de marca') href = `/omisionmarca/${s.id}`;
+                    if (s.kind === 'Infraestructura') href = `/reporteinf/${s.id}`;
+                    return (
+                      <tr key={`${s.kind}-${s.id}`}>
+                        <td>{s.kind}</td>
+                        <td>{fecha} {hora && `• ${hora}`}</td>
+                        <td>{s.solicitante || '—'}</td>
+                        <td>
+                          <Link href={href} className={styles.openLink}>Abrir</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )
+        ) : (
+          <div className={`${styles.cards} ${styles.listAnimate}`} key={`list-${animateTick}` }>
+            {filtered.length === 0 ? <div className={styles.empty}>No hay solicitudes.</div> : filtered.map((s) => {
+              const Card = (
+                <article className={styles.card}>
+                  <div>
+                    <div className={styles.cardTitle}>{s.tipo_display}</div>
+                    <div className={styles.cardMeta}>{s.fecha_inicio}{s.es_rango ? ` → ${s.fecha_fin}` : ''} • {s.jornada || ''} {s.kind ? `• ${s.kind}` : ''}</div>
+                    <div style={{ color: '#444', marginTop: 6 }}>{s.observaciones || ''}</div>
+                  </div>
+                  <div className={styles.statusWrap}>
+                    <div className={styles.statusDot} style={{ background: statusColor(s.estado) }} />
+                    <div className={styles.statusText}>{s.estado || 'Sin estado'}</div>
+                  </div>
+                </article>
+              );
+              let href = `/justificaciones/${s.id}`;
+              if (s.kind === 'Permiso') href = `/solicitudes/${s.id}`;
+              if (s.kind === 'Omisión de marca') href = `/omisionmarca/${s.id}`;
+              if (s.kind === 'Infraestructura') href = `/reporteinf/${s.id}`;
+              return (
+                <Link key={`${s.kind}-${s.id}`} href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  {Card}
+                </Link>
+              );
+            })}
+          </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

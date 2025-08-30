@@ -44,11 +44,6 @@ export default async function AdminPage({ searchParams }){
   }
 
   return (
-    <div style={{ padding: 20 }}>
-  {/* The client will also display its own internal loading overlay during fetches */}
-      <h1>Administrar personal</h1>
-      <p>Ver y administrar usuarios registrados (cédula, nombres, apellidos)</p>
-      <StaffManagerClient initialUsers={users} initialTotal={total} initialPage={page} initialPageSize={pageSize} initialSearch={search} />
-    </div>
+    <StaffManagerClient initialUsers={users} initialTotal={total} initialPage={page} initialPageSize={pageSize} initialSearch={search} />
   )
 }
