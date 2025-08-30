@@ -6,6 +6,12 @@
   --border: #e5e7eb;
   --bg: #ffffff;
   --bg-soft: #f8fafc;
+  --ink: #1f2937;
+  --primary: #0ea5e9;
+  --secondary: #7c3aed;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 }
 
 /* Basic global resets useful for Next + CSS Modules */
