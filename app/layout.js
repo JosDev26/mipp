@@ -1,4 +1,5 @@
 import { Nunito_Sans } from 'next/font/google';
+import './globals.css';
 
 const nunito = Nunito_Sans({
   subsets: ['latin'],

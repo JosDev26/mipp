@@ -1,16 +1,4 @@
-:root {
-  --brand: #7a1f26;
-  --ink: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --bg: #ffffff;
-  --bg-soft: #f8fafc;
-  --primary: #0ea5e9;
-  --secondary: #7c3aed;
-  --success: #16a34a;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-}
+/* uses global variables from app/globals.css */
 
 /* Role-based themes */
 .themeNoRole { --brand: #791524; }

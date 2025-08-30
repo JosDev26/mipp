@@ -1,0 +1,19 @@
+/* Global CSS variables used across the app */
+:root {
+  --brand: #7a1f26;
+  --text: #2d2d2d;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --bg: #ffffff;
+  --bg-soft: #f8fafc;
+}
+
+/* Basic global resets useful for Next + CSS Modules */
+html, body, #__next {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}

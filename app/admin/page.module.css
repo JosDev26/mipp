@@ -1,13 +1,4 @@
-:root {
-  --brand: #2D3D7E;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --bg: #ffffff;
-  --bg-soft: #f9fafb;
-}
-
-.page { width: 100vw; max-width: 100vw; min-height: 100vh; margin: 0; padding: 16px 24px 40px; color: var(--text); font-family: 'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; box-sizing: border-box; }
+.page { width: 100vw; max-width: 100vw; min-height: 100vh; margin: 0; padding: 16px 24px 40px; color: var(--text); font-family: 'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; box-sizing: border-box; --brand: #2D3D7E; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb; --bg: #ffffff; --bg-soft: #f9fafb; }
 
 /* Ensure descendants inherit Nunito Sans within admin scope */
 .page * { font-family: inherit; }
