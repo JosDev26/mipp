@@ -4,7 +4,7 @@
 .page * { font-family: inherit; }
 
 /* Header */
-.header { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
+.header { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 10px 0 12px; border-bottom: none; }
 .headerRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .title { font-weight: 900; font-size: 20px; margin: 0; }
 .counter { color: var(--muted); font-size: 13px; }
@@ -12,11 +12,12 @@
 .search { padding: 8px 10px; width: clamp(220px, 36vw, 380px); max-width: 100%; border: 1px solid var(--border); border-radius: 8px; flex: 1 1 260px; }
 
 .status { padding: 10px; border-radius: 8px; margin-top: 8px; }
+.status { padding: 12px 14px; }
 .statusOk { border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; }
 .statusErr { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; }
 
 /* Tabs */
-.tabs { display: inline-flex; gap: 6px; margin-top: 8px; background: var(--bg-soft); border: 1px solid var(--border); padding: 6px; border-radius: 12px; overflow: auto; max-width: 100%; }
+.tabs { display: inline-flex; gap: 6px; margin-top: 8px; background: var(--bg-soft); border: none; padding: 8px; border-radius: 12px; overflow: auto; max-width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,.04) inset; }
 .tab { padding: 8px 14px; background: transparent; cursor: pointer; font-weight: 800; color: #374151; border: 1px solid transparent; border-radius: 10px; transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .25s ease, transform .12s ease; }
 .tab:hover { background: #f3f4f6; }
 .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent); }
@@ -28,9 +29,9 @@
 .chip { background: #eef2ff; color: #1e3a8a; padding: 2px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e0e7ff; }
 .chipBtn { border: none; background: transparent; cursor: pointer; }
 
-.list { border: 1px solid var(--border); border-radius: 12px; max-height: 520px; overflow: auto; background: var(--bg-soft); padding: 8px; }
+.list { border: none; border-radius: 12px; max-height: 520px; overflow: auto; background: var(--bg-soft); padding: 10px; }
 /* Card-like list items */
-.listItem { display: block; width: 100%; text-align: left; padding: 12px; margin: 6px 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; position: relative; overflow: hidden; transition: background-color .18s ease, border-color .18s ease, transform .14s ease, box-shadow .25s ease; font-family: inherit; }
+.listItem { display: block; width: 100%; text-align: left; padding: 12px; margin: 8px 4px; background: var(--bg); border: 1px solid transparent; border-radius: 12px; position: relative; overflow: hidden; transition: background-color .18s ease, border-color .18s ease, transform .14s ease, box-shadow .25s ease; font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
 /* subtle sheen on hover */
 .listItem::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.25), transparent 70%); transform: translateX(-120%); transition: transform .6s ease; pointer-events: none; }
 /* left accent bar */
@@ -46,14 +47,14 @@
 .rolePill { border: 1px solid #e0e7ff; background: #eef2ff; color: #1e3a8a; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
 .pagination { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
 
-.detail { border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-height: 360px; background: var(--bg); }
+.detail { border: none; border-radius: 12px; padding: 16px; min-height: 360px; background: var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 /* Detail header */
 .detailHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .detailTitle { font-weight: 900; font-size: 18px; line-height: 1.2; }
 .detailMeta { color: var(--muted); font-size: 13px; }
 
 /* Sub-tabs as a pill segmented control */
-.subtabs { display: inline-flex; gap: 6px; margin: 8px 0 12px; background: var(--bg-soft); border: 1px solid var(--border); padding: 6px; border-radius: 12px; }
+.subtabs { display: inline-flex; gap: 6px; margin: 8px 0 12px; background: var(--bg-soft); border: none; padding: 8px; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04) inset; }
 .subtab { padding: 8px 12px; background: transparent; cursor: pointer; font-weight: 800; color: #374151; border: 1px solid transparent; border-radius: 10px; transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .25s ease, transform .12s ease; }
 .subtab:hover { background: #f3f4f6; }
 .subtab:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent); }
@@ -102,8 +103,11 @@
 @keyframes popIn { from { opacity: 0; transform: translateY(6px) scale(.98);} to { opacity: 1; transform: translateY(0) scale(1);} }
 
 @media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
-  .list { max-height: 48vh; }
+  .page { padding: 14px 18px 36px; }
+  .layout { grid-template-columns: 1fr; gap: 20px; }
+  .list { max-height: 48vh; padding: 12px; }
+  .listItem { margin: 10px 4px; padding: 14px; }
+  .detail { padding: 18px; }
   .headerRow .search { flex-basis: 100%; width: 100%; }
   .counter { display: none; }
 }
@@ -111,12 +115,15 @@
 @media (max-width: 760px) {
   .kvGrid { grid-template-columns: 1fr; }
   .kvItem { grid-template-columns: 1fr; gap: 4px; }
-  .detailHeader { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .detailHeader { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .filters { gap: 10px; margin-bottom: 12px; }
 }
 
 @media (max-width: 520px) {
-  .tabs { padding: 4px; }
-  .subtabs { padding: 4px; overflow: auto; max-width: 100%; }
+  .page { padding: 14px 20px 36px; }
+  .tabs { padding: 8px; }
+  .subtabs { padding: 8px; overflow: auto; max-width: 100%; }
+  .listItem { margin: 12px 4px; padding: 16px; }
 }
 
 /* Floating action button */
