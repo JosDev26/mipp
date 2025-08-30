@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import useCurrentUser from '../../../lib/useCurrentUser';
+import LoadingOverlay from '../../../components/LoadingOverlay';
+import styles from './page.module.css';
 
 export default function OmisionMarcaDetalle() {
   const { id } = useParams();
@@ -13,6 +15,7 @@ export default function OmisionMarcaDetalle() {
   const isAdmin = Array.isArray(roles) && roles.includes('admin');
   const [row, setRow] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -26,16 +29,20 @@ export default function OmisionMarcaDetalle() {
       if (!id) return;
       try {
         setLoading(true);
+        setStatus({ type: 'info', text: 'Cargando omisión…' });
         const { data, error } = await supabase
           .from('omision_marca')
           .select('*')
           .eq('id', id)
           .limit(1);
         if (error) throw error;
-        setRow((data && data[0]) || null);
+        const item = (data && data[0]) || null;
+        setRow(item);
+        setStatus(item ? null : { type: 'error', text: 'No se encontró la omisión.' });
       } catch (err) {
         console.error('detalle omisión de marca error', err);
         setRow(null);
+        setStatus({ type: 'error', text: 'Error cargando la omisión.' });
       } finally {
         setLoading(false);
       }
@@ -43,74 +50,104 @@ export default function OmisionMarcaDetalle() {
     fetchData();
   }, [id]);
 
-  const isResolved = React.useMemo(() => {
+  const isResolved = useMemo(() => {
     const s = row?.estado ? String(row.estado).toLowerCase() : '';
     return s && !s.includes('pend');
   }, [row]);
+  const estadoClass = useMemo(() => {
+    const s = String(row?.estado || '').toLowerCase();
+    if (!s) return styles.pillNeutral;
+    if (s.includes('acept') || s.includes('acoge')) return styles.pillSuccess;
+    if (s.includes('deneg') || s.includes('rech')) return styles.pillDanger;
+    return styles.pillPending;
+  }, [row]);
 
   return (
-    <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24 }}>
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver al historial</Link>
-      </nav>
+    <div className={`${styles.page} ${styles.pageEnter}`}>
+      <LoadingOverlay show={authLoading} text="Verificando sesión…" />
+
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${status.type === 'error' ? styles.alertError : status.type === 'success' ? styles.alertSuccess : styles.alertInfo}`}>
+            {status.text}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.topbar}>
+        <Link href="/omisionmarca/historial" className={styles.back} title="Volver al listado">⟵ Volver</Link>
+      </div>
+
+      <header className={styles.header}>
+        <h1 className={styles.title}>Omisión de marca #{id}</h1>
+        {row?.estado ? (
+          <span className={`${styles.pill} ${estadoClass}`} aria-label={`Estado: ${row.estado}`}>{row.estado}</span>
+        ) : null}
+      </header>
 
       {loading ? (
-        <p>Cargando omisión de marca...</p>
+        <div className={styles.skeletonStack} aria-hidden>
+          <div className={styles.cardSkeleton} />
+          <div className={styles.cardSkeleton} />
+          <div className={styles.cardSkeleton} />
+        </div>
       ) : !row ? (
-        <p>No se encontró la omisión de marca.</p>
+        <div className={styles.card}>
+          <p>No se encontró la omisión de marca.</p>
+          <Link className={styles.btn} href="/omisionmarca/historial">Ir al historial</Link>
+        </div>
       ) : (
         <>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <h2 style={{ margin:0 }}>Detalle de omisión de marca</h2>
-          </div>
-
           {isAdmin && !isResolved && (
-            <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', padding:12, borderRadius:6, marginTop:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div className={`${styles.card} ${styles.adminCallout}`}>
+              <div className={styles.rowBetween}>
                 <div>
                   <strong>Acción de administrador:</strong> Puedes responder esta solicitud.
                 </div>
-                <Link href={`/omisionmarca/${id}/responder`} style={{ padding:'8px 12px', background:'#d97706', color:'#fff', borderRadius:6, textDecoration:'none' }}>Ir a Responder</Link>
+                <Link href={`/omisionmarca/${id}/responder`} className={`${styles.btn} ${styles.btnWarn}`}>Ir a Responder</Link>
               </div>
             </div>
           )}
 
-          <section style={{ background: '#f7f7f7', padding: 12, borderRadius: 6, marginBottom: 16 }}>
-            <p><strong>Fecha de omisión:</strong> {row.fecha_omision}</p>
-            <p><strong>Tipo:</strong> {row.tipo_omision}</p>
-          </section>
-
-          <section style={{ marginBottom: 16 }}>
-            <h3>Suscriptor</h3>
-            <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-              <p><strong>Nombre:</strong> {row.nombre_suscriptor || '—'}</p>
-              <p><strong>Cédula:</strong> {row.user_cedula || '—'}</p>
-              <p><strong>Posición:</strong> {row.posicion || '—'}</p>
-              <p><strong>Instancia:</strong> {row.instancia || '—'}</p>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-resumen">
+            <h2 id="sec-resumen" className={styles.cardTitle}>Resumen</h2>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Fecha de omisión</span><span className={styles.metaValue}>{row.fecha_omision || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Tipo</span><span className={styles.metaValue}>{row.tipo_omision || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Creado</span><span className={styles.metaValue}>{row.creado_en ? new Date(row.creado_en).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</span></div>
             </div>
           </section>
 
-          <section>
-            <h3>Detalle</h3>
-            <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-              <p><strong>Justificación:</strong> {row.justificacion}</p>
-              <p style={{ color: '#666' }}><strong>Creado:</strong> {row.creado_en ? new Date(row.creado_en).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</p>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-suscriptor">
+            <h2 id="sec-suscriptor" className={styles.cardTitle}>Suscriptor</h2>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Nombre</span><span className={styles.metaValue}>{row.nombre_suscriptor || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Cédula</span><span className={styles.metaValue}>{row.user_cedula || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Posición</span><span className={styles.metaValue}>{row.posicion || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Instancia</span><span className={styles.metaValue}>{row.instancia || '—'}</span></div>
             </div>
           </section>
 
-          <section style={{ marginTop: 16 }}>
-            <h3>Resolución</h3>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-detalle">
+            <h2 id="sec-detalle" className={styles.cardTitle}>Detalle</h2>
+            <div className={styles.detailList}>
+              <div className={styles.detailRow}><span className={styles.detailKey}>Justificación</span><span className={styles.detailValue}>{row.justificacion}</span></div>
+            </div>
+          </section>
+
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-resol">
+            <h2 id="sec-resol" className={styles.cardTitle}>Resolución</h2>
             {row.estado || row.respuesta_en || row.respuesta_por || row.respuesta_comentario ? (
-              <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-                <p><strong>Estado:</strong> {row.estado || '—'}</p>
-                <p><strong>Fecha de decisión:</strong> {row.respuesta_en ? new Date(row.respuesta_en).toLocaleString() : '—'}</p>
-                <p><strong>Decidido por:</strong> {row.respuesta_nombre || row.respuesta_por || '—'}</p>
+              <div className={styles.detailList}>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Estado</span><span className={styles.detailValue}>{row.estado || '—'}</span></div>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Fecha de decisión</span><span className={styles.detailValue}>{row.respuesta_en ? new Date(row.respuesta_en).toLocaleString() : '—'}</span></div>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Decidido por</span><span className={styles.detailValue}>{row.respuesta_nombre || row.respuesta_por || '—'}</span></div>
                 {row.respuesta_comentario && (
-                  <p><strong>Comentario:</strong> {row.respuesta_comentario}</p>
+                  <div className={styles.detailRow}><span className={styles.detailKey}>Comentario</span><span className={styles.detailValue}>{row.respuesta_comentario}</span></div>
                 )}
               </div>
             ) : (
-              <p style={{ color:'#777' }}>Sin resolución aún.</p>
+              <p className={styles.muted}>Sin resolución aún.</p>
             )}
           </section>
         </>

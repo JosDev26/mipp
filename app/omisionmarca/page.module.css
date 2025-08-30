@@ -1,4 +1,11 @@
 .page { max-width: 1440px; margin: 28px auto 56px; padding: 0 32px 36px; color: #2d2d2d; font-family: 'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+.statusBar { margin-bottom: 10px; min-height: 24px; }
+.alert { border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 14px; }
+.alertInfo { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.alertSuccess { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.alertError { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.errorSummary { border: 1px solid #e5e7eb; border-left: 4px solid #dc2626; background: #fffafa; border-radius: 10px; padding: 10px 12px; margin: 10px 0 14px; color: #7f1d1d; }
+.errorSummary ul { margin: 8px 0 0; padding-left: 18px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .back { color: #7a1f26; text-decoration: none; font-weight: 700; }
 .helpLink { color: #1f2937; text-decoration: none; font-size: 14px; }
@@ -12,7 +19,10 @@
 .chip { background: #f3f4f6; border: 1px solid #e5e7eb; padding: 6px 10px; border-radius: 8px; font-weight: 700; color: #374151; }
 .field { display: grid; gap: 6px; margin-bottom: 12px; }
 .lbl { font-weight: 800; color: #7a1f26; }
-.input, .select, .textarea { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+.input, .select, .textarea { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; box-sizing: border-box; font-size: 14px; transition: border-color .2s ease, box-shadow .25s ease; }
+.field:focus-within .input,
+.field:focus-within .select,
+.field:focus-within .textarea { border-color: #c08497; box-shadow: 0 0 0 3px rgba(122,31,38,.14), 0 8px 18px rgba(0,0,0,.05); }
 .actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 8px; }
 .btn { border: none; border-radius: 999px; padding: 12px 24px; cursor: pointer; font-weight: 800; font-size: 15px; }
 .btnPrimary { background: #7a1f26; color: #fff; }

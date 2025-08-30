@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from './page.module.css';
 // Helpers de días hábiles (copiados de formjustificacion)
 function shiftYMD(ymd, days) {
@@ -62,6 +62,9 @@ export default function OmisionMarcaPage() {
   const { user: currentUser, loading: authLoading } = useCurrentUser();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState(null); // { type, text }
+  const [errorsList, setErrorsList] = useState([]);
+  const summaryRef = useRef(null);
   const [form, setForm] = useState({
     fechaOmision: "",
     tipo: "Entrada", // Entrada | Salida | Todo el dia | Salida anticipada
@@ -112,14 +115,18 @@ export default function OmisionMarcaPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.fechaOmision) {
-      alert("Selecciona la fecha de la omisión");
+    const errs = [];
+    if (!form.fechaOmision) errs.push('Selecciona la fecha de la omisión');
+    if (form.fechaOmision && !allowedSet.has(form.fechaOmision)) errs.push('La fecha debe estar dentro de los dos días hábiles anteriores');
+    if (!form.justificacion) errs.push('Escribe la justificación');
+    if (errs.length) {
+      setErrorsList(errs);
+      setStatus({ type: 'error', text: 'Corrige los campos marcados en rojo.' });
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
       return;
     }
-    if (!form.justificacion) {
-      alert("Escribe la justificación");
-      return;
-    }
+    setErrorsList([]);
+    setStatus({ type: 'info', text: 'Enviando justificación…' });
     setLoading(true);
     try {
       const payload = {
@@ -138,11 +145,11 @@ export default function OmisionMarcaPage() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Error en servidor");
-      alert("Justificación de omisión enviada");
-      router.push("/home");
+  setStatus({ type: 'success', text: 'Justificación de omisión enviada. Redirigiendo…' });
+  setTimeout(() => router.push('/home'), 700);
     } catch (err) {
       console.error(err);
-      alert("Error: " + (err.message || String(err)));
+  setStatus({ type: 'error', text: 'Error: ' + (err.message || String(err)) });
     } finally {
       setLoading(false);
     }
@@ -172,6 +179,14 @@ export default function OmisionMarcaPage() {
   return (
     <div className={styles.page}>
       <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${
+            status.type === 'error' ? styles.alertError :
+            status.type === 'success' ? styles.alertSuccess : styles.alertInfo
+          }`}>{status.text}</div>
+        )}
+      </div>
       <div className={styles.topbar}>
         <Link href="/home" className={styles.back}>⟵ Volver</Link>
       </div>
@@ -180,6 +195,13 @@ export default function OmisionMarcaPage() {
         <div className={styles.logos} aria-hidden><span /></div>
       </div>
       <div className={styles.titleBanner}>Justificar omisión de marca</div>
+
+      {errorsList.length > 0 && (
+        <div ref={summaryRef} className={styles.errorSummary} role="alert" aria-live="assertive">
+          <strong>Revisa estos puntos:</strong>
+          <ul>{errorsList.map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </div>
+      )}
 
           {/* Bloque de presentación estilo formulariopermiso */}
           <div className={styles.presento}>

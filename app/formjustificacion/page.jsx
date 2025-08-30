@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import styles from './page.module.css';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,10 @@ import { LocalizationProvider, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 const fmt2 = (n) => String(n).padStart(2, "0");
+// Defaults for time range
+const TIME_MIN = '07:00';
+const TIME_MAX = '16:30';
+const STEP_MINUTES = 5;
 
 // Utilidades de fecha para Costa Rica
 const crYMD = () => {
@@ -52,6 +56,10 @@ export default function FormJustificacion() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errorsUI, setErrorsUI] = useState({});
+  const [status, setStatus] = useState(null); // { type: 'info'|'success'|'error', text }
+  const [errorsList, setErrorsList] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const summaryRef = useRef(null);
   const [misSolicitudes, setMisSolicitudes] = useState([]);
 
   const [conSolicitud, setConSolicitud] = useState(false);
@@ -165,15 +173,38 @@ export default function FormJustificacion() {
     if (Number.isNaN(h) || Number.isNaN(m)) return null;
     return dayjs().hour(h).minute(m).second(0).millisecond(0);
   };
+  const toMin = (s) => {
+    if (!s) return null;
+    const [h, m] = String(s).split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+  const fmtHHMM = (mins) => `${fmt2(Math.floor(mins / 60))}:${fmt2(mins % 60)}`;
   const minTimeDJ = () => dayjs().hour(7).minute(0).second(0).millisecond(0);
   const maxTimeDJ = () => dayjs().hour(16).minute(30).second(0).millisecond(0);
 
-  const toggleFechaModo = () => setForm((p) => ({ ...p, esRango: !p.esRango }));
-  const toggleJornada = () => setForm((p) => ({
+  const toggleFechaModo = (checked) => setForm((p) => ({
     ...p,
-    jornada: p.jornada === 'Media' ? 'Completa' : 'Media',
-    horaSalida: p.jornada === 'Media' ? '' : p.horaSalida,
+    esRango: !!checked,
+    // when switching to single date, clear fechaFin to avoid stale values
+    fechaFin: checked ? p.fechaFin : '',
   }));
+  const toggleJornada = (checked) => setForm((p) => {
+    const nextIsCompleta = !!checked;
+    if (nextIsCompleta) {
+      // Switching to Completa: clear optional time of salida
+      return { ...p, jornada: 'Completa', horaSalida: '' };
+    }
+    // Switching to Media: ensure a minimal valid time range
+    const minMax = { min: 7 * 60, max: 16 * 60 + 30 };
+    let hi = p.horaInicio || TIME_MIN;
+    let hf = p.horaFin || fmtHHMM(Math.min((toMin(hi) ?? minMax.min) + STEP_MINUTES, minMax.max));
+    // if invalid order, bump end by STEP_MINUTES from start within bounds
+    if ((toMin(hf) ?? 0) <= (toMin(hi) ?? 0)) {
+      hf = fmtHHMM(Math.min((toMin(hi) ?? minMax.min) + STEP_MINUTES, minMax.max));
+    }
+    return { ...p, jornada: 'Media', horaInicio: hi, horaFin: hf };
+  });
 
   // When selecting a solicitud to justify, autofill fields
   const handleSelectSolicitud = (e) => {
@@ -248,13 +279,31 @@ export default function FormJustificacion() {
     if (form.tipoJustificacion === 'Acompañar a cita familiar' && !form.familiar) {
       errors.push('Selecciona el familiar');
     }
+    // map to UI hints
+    const ui = {};
+    for (const msg of errors) {
+      if (msg.includes('fecha inicio')) ui.fecha = ui.fecha || msg;
+      if (msg.includes('fecha fin')) ui.fechaFin = ui.fechaFin || msg;
+      if (msg.toLowerCase().includes('rango') || msg.toLowerCase().includes('hora')) ui.hora = ui.hora || msg;
+      if (msg.includes('adjuntar') || msg.includes('documento')) ui.adjunto = ui.adjunto || msg;
+      if (msg.includes('familiar')) ui.familiar = ui.familiar || msg;
+      if (msg.includes('positivo') || msg.toLowerCase().includes('cantidad')) ui.cantidad = ui.cantidad || msg;
+    }
+    setErrorsUI(ui);
     return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  const errs = validate();
-    if (errs.length) { alert(errs.join('\n')); return; }
+    const errs = validate();
+    if (errs.length) {
+      setErrorsList(errs);
+      setStatus({ type: 'error', text: 'Corrige los campos marcados en rojo.' });
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      return;
+    }
+    setErrorsList([]);
+    setStatus({ type: 'info', text: 'Enviando justificación…' });
     setLoading(true);
 
     // Upload file if exists
@@ -275,7 +324,7 @@ export default function FormJustificacion() {
       }
     } catch (err) {
       console.error('upload error', err);
-      alert('No se pudo subir el adjunto: ' + (err.message || String(err)));
+      setStatus({ type: 'error', text: 'No se pudo subir el adjunto. ' + (err.message || String(err)) });
       setLoading(false);
       return;
     } finally { setUploading(false); }
@@ -309,16 +358,12 @@ export default function FormJustificacion() {
         body: JSON.stringify(payload),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Error en servidor');
-      if (form.tipoJustificacion === 'Atención de asuntos personales') {
-        alert('Justificación enviada. Recuerda hablar con Doña Laura.');
-      } else {
-        alert('Justificación enviada.');
-      }
-      router.push('/home');
+  if (!res.ok) throw new Error(j.error || 'Error en servidor');
+  setStatus({ type: 'success', text: 'Justificación enviada. Redirigiendo…' });
+  setTimeout(() => router.push('/home'), 800);
     } catch (err) {
       console.error(err);
-      alert('Error enviando la justificación: ' + (err.message || String(err)));
+  setStatus({ type: 'error', text: 'Error enviando la justificación: ' + (err.message || String(err)) });
     } finally {
       setLoading(false);
     }
@@ -351,6 +396,15 @@ export default function FormJustificacion() {
   return (
     <div className={`${styles.page} ${styles.pageEnter}`}>
       <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      {/* Estado y progreso accesible */}
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${
+            status.type === 'error' ? styles.alertError :
+            status.type === 'success' ? styles.alertSuccess : styles.alertInfo
+          }`}>{status.text}</div>
+        )}
+      </div>
       <div className={styles.topbar}>
         <Link href="/home" className={styles.back}>⟵ Volver</Link>
         <a href="#ayuda" className={styles.helpLink} title="Ver ayuda y preguntas frecuentes">Ayuda / FAQ</a>
@@ -365,7 +419,7 @@ export default function FormJustificacion() {
       </p>
       <hr className={styles.divider} />
 
-      <div className={styles.presento}>
+  <div className={styles.presento}>
         {user ? (
           <div className={styles.chips}>
             <span>Quien se suscribe</span>
@@ -382,6 +436,14 @@ export default function FormJustificacion() {
           <p>Inicia sesión para prellenar tus datos.</p>
         )}
       </div>
+
+      {/* Resumen de errores no bloqueante */}
+      {errorsList.length > 0 && (
+        <div ref={summaryRef} className={styles.errorSummary} role="alert" aria-live="assertive">
+          <strong>Revisa estos puntos:</strong>
+          <ul>{errorsList.map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </div>
+      )}
 
   <form onSubmit={handleSubmit} className={`${styles.formCard} ${mounted ? styles.animMount : ''}`}>
         {/* Con o sin solicitud */}
@@ -429,7 +491,7 @@ export default function FormJustificacion() {
               <div className={styles.switchWrap} role="group" aria-label="Tipo de jornada">
                 <span className={styles.switchLabel}>Media jornada</span>
                 <label className={styles.switch} title={form.jornada === 'Media' ? 'Cambiar a jornada completa' : 'Cambiar a media jornada'}>
-                  <input type="checkbox" aria-checked={form.jornada === 'Completa'} checked={form.jornada === 'Completa'} onChange={toggleJornada} />
+                  <input type="checkbox" aria-checked={form.jornada === 'Completa'} checked={form.jornada === 'Completa'} onChange={(e) => toggleJornada(e.target.checked)} />
                   <span className={styles.slider} />
                 </label>
                 <span className={styles.switchLabel}>Jornada completa</span>
@@ -444,7 +506,7 @@ export default function FormJustificacion() {
               <div className={styles.switchWrap} role="group" aria-label="Tipo de fecha">
                 <span className={styles.switchLabel}>Solo una fecha</span>
                 <label className={styles.switch} title={form.esRango ? 'Cambiar a una sola fecha' : 'Cambiar a varias fechas'}>
-                  <input type="checkbox" aria-checked={form.esRango} checked={form.esRango} onChange={toggleFechaModo} />
+                  <input type="checkbox" aria-checked={form.esRango} checked={form.esRango} onChange={(e) => toggleFechaModo(e.target.checked)} />
                   <span className={styles.slider} />
                 </label>
                 <span className={styles.switchLabel}>Varias fechas</span>
@@ -555,7 +617,22 @@ export default function FormJustificacion() {
         {['Cita medica personal','Asistencia a convocatoria','Acompañar a cita familiar'].includes(form.tipoJustificacion) && (
           <div className={styles.field}>
             <label className={styles.lbl}>Adjuntar documento</label>
-            <input className={styles.input} type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} />
+            <div
+              className={`${styles.fileDrop} ${dragOver ? styles.fileDropActive : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer?.files?.[0]; if (f) setForm(p => ({ ...p, adjunto: f })); }}
+              onClick={() => document.getElementById('just-adj-file')?.click()}
+              role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('just-adj-file')?.click(); }}
+              aria-label="Arrastra y suelta el documento o haz clic para seleccionar"
+            >
+              <input id="just-adj-file" type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} style={{ display: 'none' }} />
+              <div className={styles.fileDropInner}>
+                <div className={styles.fileIcon} aria-hidden>📎</div>
+                <div className={styles.fileText}>{form.adjunto ? `Archivo: ${form.adjunto.name}` : 'Arrastra y suelta el documento o haz clic para seleccionar'}</div>
+              </div>
+            </div>
             <span className={styles.hint}>
               {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
               {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}

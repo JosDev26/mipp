@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import useCurrentUser from '../../../lib/useCurrentUser';
+import LoadingOverlay from '../../../components/LoadingOverlay';
+import styles from './page.module.css';
 
 export default function JustificacionDetalle() {
   const { id } = useParams();
@@ -14,6 +16,7 @@ export default function JustificacionDetalle() {
   const [row, setRow] = useState(null);
   const [adjuntos, setAdjuntos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(null); // {type: 'info'|'success'|'error', text}
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -27,7 +30,7 @@ export default function JustificacionDetalle() {
       if (!id) return;
       try {
         setLoading(true);
-        // Load justificación
+        setStatus({ type: 'info', text: 'Cargando justificación…' });
         const { data, error } = await supabase
           .from('justificaciones')
           .select('*')
@@ -37,18 +40,21 @@ export default function JustificacionDetalle() {
         const item = data && data[0];
         if (!item) {
           setRow(null);
+          setAdjuntos([]);
+          setStatus({ type: 'error', text: 'No se encontró la justificación.' });
         } else {
           setRow(item);
-          // Load attachments
           const { data: atts, error: attErr } = await supabase
             .from('justificacion_adjuntos')
             .select('*')
             .eq('justificacion_id', item.id)
             .order('uploaded_at', { ascending: false });
           if (!attErr) setAdjuntos(atts || []);
+          setStatus(null);
         }
       } catch (err) {
         console.error('detalle justificación error', err);
+        setStatus({ type: 'error', text: 'Error cargando la justificación.' });
       } finally {
         setLoading(false);
       }
@@ -62,93 +68,134 @@ export default function JustificacionDetalle() {
     return s && !s.includes('pend');
   }, [row]);
 
+  const estadoClass = useMemo(() => {
+    const s = String(row?.estado || '').toLowerCase();
+    if (!s) return styles.pillNeutral;
+    if (s.includes('acept') || s.includes('acoge')) return styles.pillSuccess;
+    if (s.includes('deneg') || s.includes('rech')) return styles.pillDanger;
+    return styles.pillPending;
+  }, [row]);
+
   return (
-    <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24 }}>
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver al historial</Link>
-      </nav>
+    <div className={`${styles.page} ${styles.pageEnter}`}>
+      <LoadingOverlay show={authLoading} text="Verificando sesión…" />
+
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${status.type === 'error' ? styles.alertError : status.type === 'success' ? styles.alertSuccess : styles.alertInfo}`}>
+            {status.text}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.topbar}>
+        <Link href="/gestionarjustificaciones" className={styles.back} title="Volver al listado">⟵ Volver</Link>
+        <div className={styles.topActions}>
+          <Link href="/gestionarjustificaciones" className={styles.linkMuted}>Historial</Link>
+        </div>
+      </div>
+
+      <header className={styles.header}>
+        <h1 className={styles.title}>Justificación #{id}</h1>
+        {row?.estado ? (
+          <span className={`${styles.pill} ${estadoClass}`} aria-label={`Estado: ${row.estado}`}>{row.estado}</span>
+        ) : null}
+      </header>
 
       {loading ? (
-        <p>Cargando justificación...</p>
+        <div className={styles.skeletonStack} aria-hidden>
+          <div className={styles.cardSkeleton} />
+          <div className={styles.cardSkeleton} />
+          <div className={styles.cardSkeleton} />
+        </div>
       ) : !row ? (
-        <p>No se encontró la justificación.</p>
+        <div className={styles.card}>
+          <p>No se encontró la justificación.</p>
+          <Link className={styles.btn} href="/gestionarjustificaciones">Ir al historial</Link>
+        </div>
       ) : (
         <>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <h2 style={{ margin:0 }}>Detalle de justificación</h2>
-          </div>
-
           {isAdmin && !isResolved && (
-            <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', padding:12, borderRadius:6, marginTop:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div className={`${styles.card} ${styles.adminCallout}`}>
+              <div className={styles.rowBetween}>
                 <div>
                   <strong>Acción de administrador:</strong> Puedes responder esta solicitud.
                 </div>
-                <Link href={`/justificaciones/${id}/responder`} style={{ padding:'8px 12px', background:'#d97706', color:'#fff', borderRadius:6, textDecoration:'none' }}>Ir a Responder</Link>
+                <Link href={`/justificaciones/${id}/responder`} className={`${styles.btn} ${styles.btnWarn}`}>Ir a Responder</Link>
               </div>
             </div>
           )}
 
-          {/* Cabecera */}
-          <section style={{ background: '#f7f7f7', padding: 12, borderRadius: 6, marginBottom: 16 }}>
-            <p><strong>Tipo:</strong> {row.tipo_general || '—'} • <strong>Justificación:</strong> {tipo}</p>
-            <p><strong>Fecha(s):</strong> {row.fecha_inicio}{row.es_rango ? ` → ${row.fecha_fin}` : ''}</p>
-            <p><strong>Jornada:</strong> {row.jornada || '—'}{row.hora_inicio || row.hora_fin ? ` (${row.hora_inicio || ''}${row.hora_fin ? ` - ${row.hora_fin}` : ''})` : ''}</p>
-          </section>
-
-          {/* Datos del solicitante (suscriptor) */}
-          <section style={{ marginBottom: 16 }}>
-            <h3>Suscriptor</h3>
-            <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-              <p><strong>Nombre:</strong> {row.nombre_suscriptor || '—'}</p>
-              <p><strong>Cédula:</strong> {row.user_cedula || '—'}</p>
-              <p><strong>Posición:</strong> {row.posicion || '—'}</p>
-              <p><strong>Instancia:</strong> {row.instancia || '—'}</p>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-cabecera">
+            <h2 id="sec-cabecera" className={styles.cardTitle}>Resumen</h2>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Tipo</span><span className={styles.metaValue}>{row.tipo_general || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Justificación</span><span className={styles.metaValue}>{tipo}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Fecha(s)</span><span className={styles.metaValue}>{row.fecha_inicio}{row.es_rango ? ` → ${row.fecha_fin}` : ''}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Jornada</span><span className={styles.metaValue}>{row.jornada || '—'}{row.hora_inicio || row.hora_fin ? ` (${row.hora_inicio || ''}${row.hora_fin ? ` - ${row.hora_fin}` : ''})` : ''}</span></div>
             </div>
           </section>
 
-          {/* Campos específicos */}
-          <section style={{ marginBottom: 16 }}>
-            <h3>Detalle</h3>
-            <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-              {row.familiar && <p><strong>Familiar:</strong> {row.familiar}</p>}
-              {row.cantidad && <p><strong>Cantidad:</strong> {row.cantidad} {row.unidad || ''}</p>}
-              {row.hora_salida && <p><strong>Hora de salida:</strong> {row.hora_salida}</p>}
-              {row.justificacion_fecha && <p><strong>Fecha justifica:</strong> {row.justificacion_fecha} {row.justificacion_hora ? `• ${row.justificacion_hora}` : ''}</p>}
-              {row.observaciones && <p><strong>Observaciones:</strong> {row.observaciones}</p>}
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-suscriptor">
+            <h2 id="sec-suscriptor" className={styles.cardTitle}>Suscriptor</h2>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Nombre</span><span className={styles.metaValue}>{row.nombre_suscriptor || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Cédula</span><span className={styles.metaValue}>{row.user_cedula || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Posición</span><span className={styles.metaValue}>{row.posicion || '—'}</span></div>
+              <div className={styles.metaItem}><span className={styles.metaLabel}>Instancia</span><span className={styles.metaValue}>{row.instancia || '—'}</span></div>
             </div>
           </section>
 
-          {/* Resolución */}
-          <section style={{ marginTop: 16, marginBottom: 16 }}>
-            <h3>Resolución</h3>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-detalle">
+            <h2 id="sec-detalle" className={styles.cardTitle}>Detalle</h2>
+            <div className={styles.detailList}>
+              {row.familiar && (
+                <div className={styles.detailRow}><span className={styles.detailKey}>Familiar</span><span className={styles.detailValue}>{row.familiar}</span></div>
+              )}
+              {row.cantidad && (
+                <div className={styles.detailRow}><span className={styles.detailKey}>Cantidad</span><span className={styles.detailValue}>{row.cantidad} {row.unidad || ''}</span></div>
+              )}
+              {row.hora_salida && (
+                <div className={styles.detailRow}><span className={styles.detailKey}>Hora de salida</span><span className={styles.detailValue}>{row.hora_salida}</span></div>
+              )}
+              {row.justificacion_fecha && (
+                <div className={styles.detailRow}><span className={styles.detailKey}>Fecha justificante</span><span className={styles.detailValue}>{row.justificacion_fecha}{row.justificacion_hora ? ` • ${row.justificacion_hora}` : ''}</span></div>
+              )}
+              {row.observaciones && (
+                <div className={styles.detailRow}><span className={styles.detailKey}>Observaciones</span><span className={styles.detailValue}>{row.observaciones}</span></div>
+              )}
+            </div>
+          </section>
+
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-resol">
+            <h2 id="sec-resol" className={styles.cardTitle}>Resolución</h2>
             {row.estado || row.respuesta_en || row.respuesta_por || row.respuesta_comentario ? (
-              <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 6 }}>
-                <p><strong>Estado:</strong> {row.estado || '—'}</p>
-                <p><strong>Fecha de decisión:</strong> {row.respuesta_en ? new Date(row.respuesta_en).toLocaleString() : '—'}</p>
-                <p><strong>Decidido por:</strong> {row.respuesta_nombre || row.respuesta_por || '—'}</p>
+              <div className={styles.detailList}>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Estado</span><span className={styles.detailValue}>{row.estado || '—'}</span></div>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Fecha de decisión</span><span className={styles.detailValue}>{row.respuesta_en ? new Date(row.respuesta_en).toLocaleString() : '—'}</span></div>
+                <div className={styles.detailRow}><span className={styles.detailKey}>Decidido por</span><span className={styles.detailValue}>{row.respuesta_nombre || row.respuesta_por || '—'}</span></div>
                 {row.respuesta_comentario && (
-                  <p><strong>Comentario:</strong> {row.respuesta_comentario}</p>
+                  <div className={styles.detailRow}><span className={styles.detailKey}>Comentario</span><span className={styles.detailValue}>{row.respuesta_comentario}</span></div>
                 )}
               </div>
             ) : (
-              <p style={{ color:'#777' }}>Sin resolución aún.</p>
+              <p className={styles.muted}>Sin resolución aún.</p>
             )}
           </section>
 
-          {/* Adjuntos */}
-          <section>
-            <h3>Adjuntos</h3>
+          <section className={`${styles.card} ${styles.animSection}`} aria-labelledby="sec-adj">
+            <h2 id="sec-adj" className={styles.cardTitle}>Adjuntos</h2>
             {adjuntos.length === 0 ? (
-              <p style={{ color: '#666' }}>No hay archivos adjuntos.</p>
+              <p className={styles.muted}>No hay archivos adjuntos.</p>
             ) : (
-              <ul>
+              <ul className={styles.attachList}>
                 {adjuntos.map((a) => (
-                  <li key={a.id}>
-                    <a href={a.public_url || '#'} target="_blank" rel="noreferrer">
-                      {a.mime?.includes('image/') ? 'Imagen' : a.mime || 'Archivo'}
+                  <li key={a.id} className={styles.attachItem}>
+                    <span className={styles.attachIcon} aria-hidden>{a.mime?.includes('image/') ? '🖼️' : '📄'}</span>
+                    <a href={a.public_url || '#'} target="_blank" rel="noreferrer" className={styles.attachLink} aria-label={`Abrir adjunto ${a.path?.split('/').slice(-1)[0] || ''}`}>
+                      {a.path ? a.path.split('/').slice(-1)[0] : (a.mime || 'Archivo')}
                     </a>
-                    {a.path ? <span style={{ color: '#777' }}> — {a.path.split('/').slice(-1)[0]}</span> : null}
+                    {a.mime ? <span className={styles.attachMeta}>{a.mime}</span> : null}
                   </li>
                 ))}
               </ul>

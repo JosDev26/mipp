@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './page.module.css';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,8 +16,9 @@ export default function ReporteInfraestructuraPage() {
   const [reporte, setReporte] = useState('');
   const [lugar, setLugar] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [okMsg, setOkMsg] = useState('');
-  const [errMsg, setErrMsg] = useState('');
+  const [status, setStatus] = useState(null); // { type, text }
+  const [errorsList, setErrorsList] = useState([]);
+  const summaryRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -52,12 +53,15 @@ export default function ReporteInfraestructuraPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrMsg('');
-    setOkMsg('');
+    setStatus(null);
     if (!tipoReporte || !reporte || !lugar) {
-      setErrMsg('Completa todos los campos.');
+      setErrorsList(['Completa todos los campos.']);
+      setStatus({ type: 'error', text: 'Faltan campos obligatorios.' });
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
       return;
     }
+    setErrorsList([]);
+    setStatus({ type: 'info', text: 'Enviando reporte…' });
     setEnviando(true);
     try {
       const payload = {
@@ -74,15 +78,13 @@ export default function ReporteInfraestructuraPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const out = await res.json();
-      if (!res.ok) throw new Error(out.error || 'Error enviando reporte');
-  setOkMsg('Reporte enviado.');
-  setReporte('');
-  setLugar('');
-  setTipoReporte('Normal');
-  router.push('/home');
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || 'Error enviando reporte');
+  setStatus({ type: 'success', text: 'Reporte enviado. Redirigiendo…' });
+  setReporte(''); setLugar(''); setTipoReporte('Normal');
+  setTimeout(() => router.push('/home'), 700);
     } catch (err) {
-      setErrMsg(err.message || String(err));
+  setStatus({ type: 'error', text: err.message || String(err) });
     } finally {
       setEnviando(false);
     }
@@ -110,8 +112,16 @@ export default function ReporteInfraestructuraPage() {
   }, [enviando]);
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.pageEnter || ''}`}>
       <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${
+            status.type === 'error' ? styles.alertError :
+            status.type === 'success' ? styles.alertSuccess : styles.alertInfo
+          }`}>{status.text}</div>
+        )}
+      </div>
       <div className={styles.topbar}>
         <Link href="/home" className={styles.back}>⟵ Volver</Link>
       </div>
@@ -119,7 +129,7 @@ export default function ReporteInfraestructuraPage() {
         <div className={styles.brand}>MIPP+</div>
         <div className={styles.logos} aria-hidden><span /></div>
       </div>
-      <div className={styles.titleBanner}>Reporte de Infraestructura</div>
+  <div className={styles.titleBanner}>Reporte de Infraestructura</div>
       {/* Bloque de presentación estilo formulariopermiso */}
       <div className={styles.presento}>
         {user ? (
@@ -141,7 +151,13 @@ export default function ReporteInfraestructuraPage() {
         )}
       </div>
 
-      <div className={styles.formCard}>
+  <div className={`${styles.formCard} ${styles.animSection || ''}`}>
+        {errorsList.length > 0 && (
+          <div ref={summaryRef} className={styles.errorSummary} role="alert" aria-live="assertive">
+            <strong>Revisa estos puntos:</strong>
+            <ul>{errorsList.map((m, i) => <li key={i}>{m}</li>)}</ul>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className={styles.field}>
             <label className={styles.lbl}>Tipo de reporte</label>
@@ -171,8 +187,6 @@ export default function ReporteInfraestructuraPage() {
             <button id="btn-enviar-reporte" type="submit" disabled={enviando} className={`${styles.btn} ${styles.btnPrimary}`}>
               {enviando ? 'Enviando...' : 'Enviar reporte'}
             </button>
-            {okMsg && <span className={styles.ok}>{okMsg}</span>}
-            {errMsg && <span className={styles.err}>{errMsg}</span>}
           </div>
         </form>
       </div>

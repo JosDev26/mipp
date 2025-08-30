@@ -25,6 +25,20 @@ export function middleware(req) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Redirecciones: bloquear acceso a rutas base sin ID
+  // Normaliza para tratar '/ruta' y '/ruta/' como equivalentes
+  const trimmed = pathname !== '/' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const redirects = new Map([
+    ['/solicitudes', '/gestionarsolicitudes'],
+    ['/justificaciones', '/gestionarjustificaciones'],
+    // Tolerancia a posible error tipográfico común
+    ['/justificiacion', '/gestionarjustificaciones'],
+  ]);
+  if (redirects.has(trimmed)) {
+    const url = new URL(redirects.get(trimmed), req.url);
+    return NextResponse.redirect(url);
+  }
+
   // Cookie presente -> permitir
   return NextResponse.next();
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 // Head removido; la fuente se aplica globalmente desde layout
 import styles from './page.module.css';
@@ -84,6 +84,10 @@ export default function SolicitudPermiso() {
   const [loading, setLoading] = useState(false);
   const [errorsUI, setErrorsUI] = useState({});
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState(null); // { type:'info'|'success'|'error', text:string }
+  const [errorsList, setErrorsList] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const summaryRef = useRef(null);
 
   const [form, setForm] = useState({
     tipoGeneral: "Salida", // Salida | Ausencia | Tardía | Incapacidad
@@ -262,7 +266,14 @@ export default function SolicitudPermiso() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (errs.length) { alert(errs.join("\n")); return; }
+    if (errs.length) {
+      setErrorsList(errs);
+      setStatus({ type: 'error', text: 'Corrige los campos marcados en rojo.' });
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      return;
+    }
+    setErrorsList([]);
+    setStatus({ type: 'info', text: 'Enviando solicitud…' });
     setLoading(true);
 
     // Preparar payload compatible con `solicitudes_permiso`
@@ -297,7 +308,7 @@ export default function SolicitudPermiso() {
       }
     } catch (uploadErr) {
       console.error('Upload error:', uploadErr);
-      alert('No se pudo subir el adjunto. Error: ' + (uploadErr.message || String(uploadErr)));
+      setStatus({ type: 'error', text: 'No se pudo subir el adjunto. ' + (uploadErr.message || String(uploadErr)) });
       setLoading(false);
       return;
   } finally { setUploading(false); }
@@ -335,17 +346,13 @@ export default function SolicitudPermiso() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Error en servidor');
-      if (form.tipoSolicitud === "Atención de asuntos personales") {
-        alert("Solicitud enviada. Recuerda hablar con Doña Laura.");
-      } else {
-        alert("Solicitud enviada");
-      }
-      router.push('/home');
+  setStatus({ type: 'success', text: 'Solicitud enviada. Redirigiendo…' });
+  setTimeout(() => router.push('/home'), 700);
       try { localStorage.removeItem("permisoFormDraft"); } catch {}
       setForm({ tipoGeneral: "Salida", esRango:false, fecha:"", fechaFin:"", horaInicio:"", horaFin:"", jornada:"Media", tipoSolicitud:"Cita medica personal", familiar:"", cantidad:"", unidad:"horas", observaciones:"", horaSalida:"", adjunto:null });
     } catch (err) {
       console.error(err);
-      alert("Error enviando la solicitud: " + (err.message || String(err)));
+  setStatus({ type: 'error', text: 'Error enviando la solicitud: ' + (err.message || String(err)) });
     } finally {
       setLoading(false);
     }
@@ -398,9 +405,19 @@ export default function SolicitudPermiso() {
   const unidadSpan = (form.jornada === 'Completa' && form.esRango) ? 'span-6' : 'span-4';
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.pageEnter}`}>
   {/* Fuente global desde layout */}
       <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
+
+      {/* Estado y progreso accesible */}
+      <div className={styles.statusBar} role="status" aria-live="polite">
+        {status?.text && (
+          <div className={`${styles.alert} ${
+            status.type === 'error' ? styles.alertError :
+            status.type === 'success' ? styles.alertSuccess : styles.alertInfo
+          }`}>{status.text}</div>
+        )}
+      </div>
 
       {/* Encabezado estilo maqueta */}
       <div className={styles.topbar}>
@@ -443,7 +460,15 @@ export default function SolicitudPermiso() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className={styles.formCard}>
+      {/* Resumen de errores no bloqueante */}
+      {errorsList.length > 0 && (
+        <div ref={summaryRef} className={styles.errorSummary} role="alert" aria-live="assertive">
+          <strong>Revisa estos puntos:</strong>
+          <ul>{errorsList.map((m, i) => <li key={i}>{m}</li>)}</ul>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className={`${styles.formCard} ${styles.animSection}`}>
         {/* Tipo general */}
         <div className={styles.field}>
           <label className={styles.lbl}>Permiso de:
@@ -512,12 +537,14 @@ export default function SolicitudPermiso() {
                 const d = new Date(val);
                 // 0 = domingo, 6 = sábado
                 if (d && (d.getDay() === 0 || d.getDay() === 6)) {
-                  alert('No se permiten fines de semana.');
+                  setErrorsUI(p => ({ ...p, fecha: 'No se permiten fines de semana' }));
                   setForm(f => ({ ...f, fecha: '' }));
                   return;
                 }
                 handleChange(e);
-              }} required min={todayYMD} />
+                setErrorsUI(p => ({ ...p, fecha: undefined }));
+              }} required min={todayYMD} aria-describedby={errorsUI.fecha ? 'err-fecha' : undefined} />
+            {errorsUI.fecha && <div id="err-fecha" className={styles.error}>{errorsUI.fecha}</div>}
             {errorsUI.fecha && <div className={styles.error}>{errorsUI.fecha}</div>}
           </div>
           {form.esRango && (
@@ -527,7 +554,7 @@ export default function SolicitudPermiso() {
       const val = e.target.value;
       const d = new Date(val);
       if (d && (d.getDay() === 0 || d.getDay() === 6)) {
-        alert('No se permiten fines de semana.');
+        setErrorsUI(p => ({ ...p, fecha: 'No se permiten fines de semana' }));
         setForm(f => ({ ...f, fechaFin: '' }));
         return;
       }
@@ -699,7 +726,36 @@ export default function SolicitudPermiso() {
         {(form.tipoSolicitud === "Cita medica personal" || form.tipoSolicitud === "Asistencia a convocatoria") && (
           <div className={styles.field}>
             <label className={styles.lbl}>Adjuntar documento</label>
-            <input className={styles.input} type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} />
+            <div
+              className={`${styles.fileDrop} ${dragOver ? styles.fileDropActive : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault(); setDragOver(false);
+                const f = e.dataTransfer?.files?.[0];
+                if (f) setForm(p => ({ ...p, adjunto: f }));
+              }}
+              onClick={() => document.getElementById('adj-file-input')?.click()}
+              role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('adj-file-input')?.click(); }}
+              aria-label="Arrastra y suelta el documento o haz clic para seleccionar"
+            >
+              <input
+                id="adj-file-input"
+                className={styles.input}
+                type="file"
+                name="adjunto"
+                accept=".pdf,.doc,.docx,image/*"
+                onChange={handleChange}
+                style={{ display: 'none' }}
+              />
+              <div className={styles.fileDropInner}>
+                <div className={styles.fileIcon} aria-hidden>📎</div>
+                <div className={styles.fileText}>
+                  {form.adjunto ? `Archivo: ${form.adjunto.name}` : 'Arrastra y suelta el documento o haz clic para seleccionar'}
+                </div>
+              </div>
+            </div>
             <span className={styles.hint} title="Se permiten imágenes (jpg, png), PDF y Word">
               {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
               {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}

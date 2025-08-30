@@ -18,6 +18,17 @@
 .pageEnter { animation: fadeDown .45s ease-out both; }
 @keyframes fadeDown { from { opacity: 0; transform: translateY(-6px);} to { opacity: 1; transform: translateY(0);} }
 
+/* Accessible status bar and alert styles */
+.statusBar { margin-bottom: 10px; min-height: 24px; }
+.alert { border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 14px; }
+.alertInfo { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.alertSuccess { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.alertError { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+/* Error summary block */
+.errorSummary { border: 1px solid var(--border); border-left: 4px solid #dc2626; background: #fffafa; border-radius: 10px; padding: 10px 12px; margin: 10px 0 14px; color: #7f1d1d; }
+.errorSummary ul { margin: 8px 0 0; padding-left: 18px; }
+
 .topbar {
   display: flex;
   align-items: center;
@@ -54,6 +65,14 @@
 .lbl { display: block; font-weight: 800; color: var(--brand); margin-bottom: 6px; }
 .input, .select, .textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 14px; box-sizing: border-box; }
 .textarea { min-height: 140px; resize: vertical; }
+
+/* Drag & drop file input */
+.fileDrop { border: 1.5px dashed #d1d5db; border-radius: 12px; background: #fafafa; padding: 14px; cursor: pointer; transition: border-color .2s ease, background .2s ease, box-shadow .25s ease; }
+.fileDrop:hover { border-color: #9ca3af; background: #f9fafb; }
+.fileDropActive { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
+.fileDropInner { display: flex; align-items: center; gap: 10px; }
+.fileIcon { font-size: 20px; }
+.fileText { color: #374151; font-weight: 700; }
 
 /* Progressive reveal of form sections on mount */
 .animMount > * { opacity: 0; transform: translateY(6px); animation: fadeUpIn .5s ease both; }
@@ -109,12 +128,20 @@
 .jornadaBar { display: flex; align-items: center; justify-content: space-between; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
 .switchWrap { display: inline-flex; align-items: center; gap: 8px; }
 .switchLabel { color: #374151; font-weight: 700; font-size: 14px; }
-.switch { position: relative; display: inline-block; width: 48px; height: 28px; }
+.switch { 
+  /* Variables to guarantee perfect centering of the knob in both states */
+  --sw-w: 48px;  /* track width */
+  --sw-h: 28px;  /* track height */
+  --sw-pad: 3px; /* inner padding */
+  --sw-knob: calc(var(--sw-h) - (2 * var(--sw-pad))); /* knob size */
+  --sw-shift: calc(var(--sw-w) - var(--sw-knob) - (2 * var(--sw-pad))); /* horizontal travel */
+  position: relative; display: inline-block; width: var(--sw-w); height: var(--sw-h);
+}
 .switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: background-color .2s ease; border-radius: 999px; border: 1px solid var(--border); }
-.slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: transform .2s ease; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); top: 50%; transform: translateY(-50%); }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: background-color .2s ease; border-radius: 999px; border: 1px solid var(--border); box-sizing: border-box; }
+.slider:before { position: absolute; content: ""; height: var(--sw-knob); width: var(--sw-knob); left: var(--sw-pad); top: var(--sw-pad); background-color: white; transition: transform .2s ease; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .switch input:checked + .slider { background-color: #cbd5e1; }
-.switch input:checked + .slider:before { transform: translateX(20px); }
+.switch input:checked + .slider:before { transform: translateX(var(--sw-shift)); }
 
 .error { color: #b91c1c; font-size: 12px; }
 .help { color: #6b7280; font-size: 12px; }

@@ -14,6 +14,10 @@
   font-family: 'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* Entrada sutil de página */
+.pageEnter { animation: pageIn 420ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
+
 .topbar {
   display: flex;
   align-items: center;
@@ -103,6 +107,20 @@
   background: #fff;
 }
 
+/* Barra de estado accesible y progreso */
+.statusBar { margin: 12px 0 16px; display: grid; gap: 10px; }
+.alert { border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px rgba(15,23,42,.08) inset; }
+.alertInfo { background:#f1f5f9; color:#0f172a; }
+.alertSuccess { background:#ecfdf5; color:#065f46; }
+.alertError { background:#fef2f2; color:#991b1b; }
+.progress { position: relative; height: 8px; background: linear-gradient(180deg,#eef2f7,#e8edf5); border-radius: 999px; overflow: hidden; }
+.progressInner { height: 100%; background: linear-gradient(90deg,#2d3d7e,#5a74e8); width: 0%; transition: width 320ms cubic-bezier(.2,.8,.2,1); }
+.progressLabel { position: absolute; right: 8px; top: -22px; font-size: 11px; color:#475569; }
+
+/* Resumen de errores anclado */
+.errorSummary { border: 1px solid #fecaca; background: #fff7f7; color: #7f1d1d; border-radius: 12px; padding: 10px 12px; margin: 8px 0 16px; }
+.errorSummary ul { margin: 6px 0 0 18px; }
+
 .sectionLabel {
   color: var(--brand);
   font-weight: 800;
@@ -147,6 +165,7 @@
   /* Ensure padding/border don’t cause overflow in narrow columns */
   box-sizing: border-box;
 }
+.input:focus, .select:focus, .textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(45,61,126,.15); border-color: #2d3d7e; }
 .textarea { min-height: 160px; resize: vertical; }
 
 /* Inline help and error messages */
@@ -181,6 +200,15 @@
 .picker :global(.MuiOutlinedInput-root) { border-radius: 8px; }
 .picker :global(.MuiInputBase-input) { padding: 10px 12px; }
 .picker :global(.MuiInputAdornment-root) { margin-right: 6px; }
+
+/* Animación progresiva de secciones */
+.animSection > * { animation: fadeUp .35s ease both; }
+.animSection > *:nth-child(1) { animation-delay: .02s; }
+.animSection > *:nth-child(2) { animation-delay: .05s; }
+.animSection > *:nth-child(3) { animation-delay: .08s; }
+.animSection > *:nth-child(4) { animation-delay: .11s; }
+.animSection > *:nth-child(5) { animation-delay: .14s; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
 
 .motivo { margin-top: 4px; }
 .radios { display: flex; flex-direction: column; gap: 10px; }
@@ -231,6 +259,14 @@
 .faqContent { padding: 10px 12px 14px; color: #4b5563; font-size: 14px; }
 .faqContent ul { margin: 6px 0 0 18px; }
 
+/* Dropzone para adjuntos */
+.fileDrop { border: 1.5px dashed #c7d2fe; background: #f8fafc; border-radius: 12px; padding: 14px; cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .15s ease; }
+.fileDrop:hover { background:#f1f5f9; }
+.fileDropActive { border-color: #2d3d7e; background: #eef2ff; }
+.fileDropInner { display:flex; align-items:center; gap:10px; }
+.fileIcon { font-size: 18px; }
+.fileText { color:#334155; font-size:.95rem; }
+
 @media (max-width: 980px) {
   .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .jornadaBar { flex-direction: column; align-items: flex-start; }
@@ -271,9 +307,15 @@
 }
 .switchLabel { color: #374151; font-weight: 700; font-size: 14px; }
 .switch {
+  /* Use variables for precise geometry so the knob centers perfectly */
+  --sw-w: 54px;     /* track width */
+  --sw-h: 30px;     /* track height */
+  --sw-pad: 3px;    /* internal spacing around the knob */
+  --sw-knob: calc(var(--sw-h) - (2 * var(--sw-pad))); /* knob size */
+  --sw-shift: calc(var(--sw-w) - var(--sw-knob) - (2 * var(--sw-pad))); /* travel distance */
   position: relative;
-  width: 54px;
-  height: 30px;
+  width: var(--sw-w);
+  height: var(--sw-h);
   flex: 0 0 auto;
 }
 .switch input {
@@ -289,29 +331,28 @@
   transition: background-color .2s ease;
   border-radius: 999px;
   border: 1px solid var(--border);
+  box-sizing: border-box;
 }
 .slider::before {
   content: "";
   position: absolute;
-  height: 24px;
-  width: 24px;
-  left: 3px;
-  top: 50%;
-  transform: translateY(-50%);
+  height: var(--sw-knob);
+  width: var(--sw-knob);
+  left: var(--sw-pad);
+  top: var(--sw-pad);
   background-color: #fff;
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0,0,0,.15);
   transition: transform .2s ease;
 }
 .switch input:checked + .slider { background-color: #cbd5e1; }
-.switch input:checked + .slider::before { transform: translate(24px, -50%); }
+.switch input:checked + .slider::before { transform: translateX(var(--sw-shift)); }
 .switch input:focus-visible + .slider { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /* Compact on very small screens */
 @media (max-width: 400px) {
-  .switch { width: 46px; height: 26px; }
-  .slider::before { width: 20px; height: 20px; left: 3px; }
-  .switch input:checked + .slider::before { transform: translate(18px, -50%); }
+  /* Keep proportions but shrink the control; variables handle the math */
+  .switch { --sw-w: 46px; --sw-h: 26px; }
 }
 
 /* Tiny spinner for inline loading states (e.g., uploads) */
