@@ -129,7 +129,7 @@ export default function LoginForm() {
           {loading ? <span className={s.spinnerInline} aria-hidden /> : null}
           {loading ? 'Iniciando…' : 'Iniciar sesión'}
         </button>
-        <div className={s.muted}>Soporte: TI Municipal</div>
+        
       </div>
     </form>
   );
