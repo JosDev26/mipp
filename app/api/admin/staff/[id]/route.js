@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
-import { requireAnyRole, requireRole } from '../../../../../lib/authHelpers'
+import { requireAnyRole } from '../../../../../lib/authHelpers'
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin'
+import bcrypt from 'bcryptjs'
 
-export async function GET(req, { params }){
+export async function GET(req, ctx){
   const maybe = await requireAnyRole(req, ['staff_manager','admin'])
   if (maybe instanceof Response) return maybe
 
-  const id = params.id
+  const { params } = ctx || {}
+  const { id } = (params && (await params)) || {}
   const { data, error } = await supabaseAdmin
     .from('users')
     .select('id,cedula,nombre,primer_apellido,segundo_apellido')
@@ -18,13 +20,14 @@ export async function GET(req, { params }){
   return NextResponse.json({ user: data })
 }
 
-export async function PUT(req, { params }){
-  // only admin can update via this endpoint
-  const maybe = await requireRole(req, 'admin')
+export async function PUT(req, ctx){
+  // allow staff_manager and admin to update via this endpoint
+  const maybe = await requireAnyRole(req, ['staff_manager','admin'])
   if (maybe instanceof Response) return maybe
 
   try{
-    const id = params.id
+  const { params } = ctx || {}
+  const { id } = (params && (await params)) || {}
     const body = await req.json()
   const { nombre, segundo_nombre, primer_apellido, segundo_apellido, posicion, categoria, instancia, must_change_password } = body
   if(!nombre && !segundo_nombre && !primer_apellido && !segundo_apellido && !posicion && !categoria && !instancia && typeof must_change_password === 'undefined') {
@@ -63,20 +66,40 @@ export async function PUT(req, { params }){
     }
   if(typeof categoria !== 'undefined') payload.categoria = collapseSpaces(categoria)
   if(typeof instancia !== 'undefined') payload.instancia = collapseSpaces(instancia)
-  if(typeof must_change_password !== 'undefined') payload.must_change_password = !!must_change_password
+  // If enabling must_change_password, reset password to default and revoke sessions
+  if (typeof must_change_password !== 'undefined') {
+    const mcp = !!must_change_password
+    payload.must_change_password = mcp
+    if (mcp) {
+      // reset password to default 'admin123'
+      const hash = await bcrypt.hash('admin123', 10)
+      payload.password_hash = hash
+    }
+  }
+
     const { data, error } = await supabaseAdmin.from('users').update(payload).eq('id', id).select('id').single()
     if(error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // If must_change_password enabled, revoke all active sessions for this user
+    if (typeof must_change_password !== 'undefined' && !!must_change_password) {
+      await supabaseAdmin
+        .from('sessions')
+        .update({ revoked: true, expires_at: new Date().toISOString() })
+        .eq('user_id', id)
+        .eq('revoked', false)
+    }
     return NextResponse.json({ ok: true })
   }catch(err){
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
 
-export async function DELETE(req, { params }){
-  // only admin can delete
-  const maybe = await requireRole(req, 'admin')
+export async function DELETE(req, ctx){
+  // allow staff_manager and admin to delete
+  const maybe = await requireAnyRole(req, ['staff_manager','admin'])
   if (maybe instanceof Response) return maybe
-  const id = params.id
+  const { params } = ctx || {}
+  const { id } = (params && (await params)) || {}
   const { error } = await supabaseAdmin.from('users').update({ deleted_at: new Date().toISOString() }).eq('id', id)
   if(error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

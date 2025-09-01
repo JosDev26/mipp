@@ -62,8 +62,12 @@ export default function ReporteInfraDetalle() {
   const estadoClass = useMemo(() => {
     const s = String(row?.estado || '').toLowerCase();
     if (!s) return styles.pillNeutral;
-    if (s.includes('acept') || s.includes('acoge')) return styles.pillSuccess;
-    if (s.includes('deneg') || s.includes('rech')) return styles.pillDanger;
+  // Infraestructura specific mapping
+  if (s.includes('no solucion')) return styles.pillDanger;
+  if (s.includes('solucion')) return styles.pillSuccess;
+  // Generic fallbacks
+  if (s.includes('acept') || s.includes('acoge')) return styles.pillSuccess;
+  if (s.includes('deneg') || s.includes('rech')) return styles.pillDanger;
     return styles.pillPending;
   }, [row]);
 
@@ -80,7 +84,7 @@ export default function ReporteInfraDetalle() {
       </div>
 
       <div className={styles.topbar}>
-        <Link href="/reporteinf/historial" className={styles.back} title="Volver al listado">⟵ Volver</Link>
+        <Link href="/home" className={styles.back} title="Volver al inicio">⟵ Volver</Link>
       </div>
 
       <header className={styles.header}>
@@ -99,10 +103,21 @@ export default function ReporteInfraDetalle() {
       ) : !row ? (
         <div className={styles.card}>
           <p>No se encontró el reporte.</p>
-          <Link className={styles.btn} href="/reporteinf/historial">Ir al historial</Link>
+          <Link className={styles.btn} href="/reporteinf">Volver al listado</Link>
         </div>
       ) : (
         <>
+          <div className={`${styles.card} ${styles.animSection}`}>
+            <a
+              href={`/api/reporteinf/${id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.btn}
+              title="Descargar PDF"
+            >
+              Descargar PDF
+            </a>
+          </div>
           {isAdmin && !isResolved && (
             <div className={`${styles.card} ${styles.adminCallout}`}>
               <div className={styles.rowBetween}>

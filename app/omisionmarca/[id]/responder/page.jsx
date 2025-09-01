@@ -59,6 +59,7 @@ export default function ResponderOmisionPage(){
     const seg = currentUser.segundo_nombre ? ` ${currentUser.segundo_nombre}` : '';
     return `${currentUser.nombre}${seg} ${currentUser.primer_apellido} ${currentUser.segundo_apellido}`.trim();
   }, [currentUser]);
+  const posicionAdmin = currentUser?.posicion || '—';
 
   useEffect(() => { if (!loading && row) selectRef.current?.focus(); }, [loading, row]);
 
@@ -118,7 +119,7 @@ export default function ResponderOmisionPage(){
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>Resolución</h3>
             <div className={styles.cardBody}>
-              <div className={styles.helper}>Fecha y hora: <strong>{fechaTxt}</strong>. Quien suscribe: <strong>{nombreAdmin || '—'}</strong>.</div>
+              <div className={styles.helper}>Fecha y Hora <strong>{fechaTxt}</strong> Quien suscribe, <strong>{nombreAdmin || '—'}</strong>, en calidad de <strong>{posicionAdmin}</strong>, con bases en las leyes y reglamento vigentes, responde a lo siguiente:</div>
               <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.field}>
                   <label className={styles.lbl} htmlFor="decision">Resolución <span className={styles.helpIcon} title="Selecciona el resultado de la evaluación">🛈</span></label>

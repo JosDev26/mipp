@@ -97,7 +97,7 @@ export default function SolicitudPermiso() {
     horaInicio: "",
     horaFin: "",
     jornada: "Media", // Media | Completa
-    tipoSolicitud: "Cita medica personal",
+  tipoSolicitud: "Asuntos medicos personales",
     familiar: "",
     cantidad: "",
     unidad: "horas", // horas | lecciones
@@ -118,6 +118,41 @@ export default function SolicitudPermiso() {
       if (saved) setForm(JSON.parse(saved));
     } catch {}
   }, []);
+
+  // Migrar valor antiguo de motivo si viene del borrador
+  useEffect(() => {
+    setForm((prev) => {
+      if (!prev) return prev;
+      if (prev.tipoSolicitud === 'Cita medica personal') {
+        return { ...prev, tipoSolicitud: 'Asuntos medicos personales' };
+      } else if (prev.tipoSolicitud === 'Acompañar a cita familiar') {
+        return { ...prev, tipoSolicitud: 'Asuntos medicos familiares' };
+      } else if (prev.tipoSolicitud === 'Atención de asuntos familiares') {
+        // Revertimos al nombre original solicitado
+        return { ...prev, tipoSolicitud: 'Atención de asuntos personales' };
+      }
+      return prev;
+    });
+  }, []);
+
+  // Enforce jornada constraints when tipoGeneral is Tardía or Incapacidad (also covers drafts)
+  useEffect(() => {
+    setForm((prev) => {
+      if (!prev) return prev;
+      if (prev.tipoGeneral === 'Incapacidad' && prev.jornada !== 'Completa') {
+        return { ...prev, jornada: 'Completa', horaSalida: '' };
+      }
+      if (prev.tipoGeneral === 'Tardía' && prev.jornada !== 'Media') {
+        const next = { ...prev, jornada: 'Media' };
+        next.horaInicio = next.horaInicio || TIME_MIN;
+        next.horaFin = next.horaFin || addMin(next.horaInicio, STEP_MINUTES);
+        const { s, e } = normalizeTimes(next.horaInicio, next.horaFin);
+        next.horaInicio = s; next.horaFin = e;
+        return next;
+      }
+      return prev;
+    });
+  }, [form.tipoGeneral]);
 
   // Usar /api/me para rellenar usuario una vez autenticado
   useEffect(() => {
@@ -167,10 +202,28 @@ export default function SolicitudPermiso() {
   // UI helpers
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : files ? files[0] : value,
-    }));
+    setForm((prev) => {
+      let next = { ...prev, [name]: type === "checkbox" ? checked : files ? files[0] : value };
+      // Si selecciona Incapacidad o Tardía, forzar jornada
+      if (name === 'tipoGeneral') {
+        if (value === 'Incapacidad') {
+          // Incapacidad => Jornada completa
+          next.jornada = 'Completa';
+          // Limpiar hora de salida (no aplica en completa)
+          next.horaSalida = '';
+        } else if (value === 'Tardía') {
+          // Tardía => Solo media jornada
+          next.jornada = 'Media';
+          // Asegurar horas válidas por si no existían
+          next.horaInicio = next.horaInicio || TIME_MIN;
+          next.horaFin = next.horaFin || addMin(next.horaInicio, STEP_MINUTES);
+          const { s, e } = normalizeTimes(next.horaInicio, next.horaFin);
+          next.horaInicio = s; next.horaFin = e;
+        }
+      }
+      // Si cambia a otro tipo, no forzar (mantener lo que tenía)
+      return next;
+    });
     // simple inline validation triggers for key fields
     if (name === 'fecha') {
       if (!value) setErrorsUI((p) => ({ ...p, fecha: 'Selecciona la fecha de inicio' }));
@@ -232,12 +285,12 @@ export default function SolicitudPermiso() {
     }
 
     // adjuntos según tipo
-    if (form.tipoSolicitud === "Cita medica personal" || form.tipoSolicitud === "Asistencia a convocatoria") {
+  if (form.tipoSolicitud === "Asuntos medicos personales" || form.tipoSolicitud === "Asistencia a convocatoria") {
       if (!form.adjunto) errors.push("Debes adjuntar un documento de respaldo");
     }
 
     // familiar requerido cuando acompaña a familiar
-    if (form.tipoSolicitud === "Acompañar a cita familiar" && !form.familiar) {
+  if (form.tipoSolicitud === "Asuntos medicos familiares" && !form.familiar) {
       errors.push("Selecciona el familiar");
     }
 
@@ -320,7 +373,7 @@ export default function SolicitudPermiso() {
       instancia: user?.instancia || 'Propietario',
       tipo_general: form.tipoGeneral,
       tipo_solicitud: form.tipoSolicitud,
-      familiar: form.tipoSolicitud === 'Acompañar a cita familiar' ? form.familiar || null : null,
+  familiar: form.tipoSolicitud === 'Asuntos medicos familiares' ? form.familiar || null : null,
       es_rango: !!form.esRango,
       fecha_inicio,
       fecha_fin,
@@ -349,7 +402,7 @@ export default function SolicitudPermiso() {
   setStatus({ type: 'success', text: 'Solicitud enviada. Redirigiendo…' });
   setTimeout(() => router.push('/home'), 700);
       try { localStorage.removeItem("permisoFormDraft"); } catch {}
-      setForm({ tipoGeneral: "Salida", esRango:false, fecha:"", fechaFin:"", horaInicio:"", horaFin:"", jornada:"Media", tipoSolicitud:"Cita medica personal", familiar:"", cantidad:"", unidad:"horas", observaciones:"", horaSalida:"", adjunto:null });
+  setForm({ tipoGeneral: "Salida", esRango:false, fecha:"", fechaFin:"", horaInicio:"", horaFin:"", jornada:"Media", tipoSolicitud:"Asuntos medicos personales", familiar:"", cantidad:"", unidad:"horas", observaciones:"", horaSalida:"", adjunto:null });
     } catch (err) {
       console.error(err);
   setStatus({ type: 'error', text: 'Error enviando la solicitud: ' + (err.message || String(err)) });
@@ -409,6 +462,11 @@ export default function SolicitudPermiso() {
   {/* Fuente global desde layout */}
       <LoadingOverlay show={authLoading || (!!currentUser && !user)} text="Cargando datos del usuario…" />
 
+      {/* Botón volver arriba */}
+      <div className={styles.topbar}>
+        <Link href="/home" className={styles.back}>⟵ Volver</Link>
+      </div>
+
       {/* Estado y progreso accesible */}
       <div className={styles.statusBar} role="status" aria-live="polite">
         {status?.text && (
@@ -421,8 +479,7 @@ export default function SolicitudPermiso() {
 
       {/* Encabezado estilo maqueta */}
       <div className={styles.topbar}>
-        <Link href="/home" className={styles.back}>⟵ Volver</Link>
-  <a href="#ayuda" className={styles.helpLink} title="Ver ayuda y preguntas frecuentes">Ayuda / FAQ</a>
+        <a href="#ayuda" className={styles.helpLink} title="Ver ayuda y preguntas frecuentes">Ayuda / FAQ</a>
       </div>
       <div className={styles.brandrow}>
         <div className={styles.brand}>MIPP+</div>
@@ -490,17 +547,29 @@ export default function SolicitudPermiso() {
                 <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de jornada</span>
               </div>
               <div className={styles.switchWrap} role="group" aria-label="Tipo de jornada">
-                <span className={styles.switchLabel}>Media jornada</span>
+                <span className={styles.switchLabel}>
+                  <span className={styles.long}>Media jornada</span>
+                  <span className={styles.short}>Media</span>
+                </span>
                 <label className={styles.switch} title={form.jornada === 'Media' ? 'Cambiar a jornada completa' : 'Cambiar a media jornada'}>
                   <input
                     type="checkbox"
                     aria-checked={form.jornada === 'Completa'}
                     checked={form.jornada === 'Completa'}
                     onChange={toggleJornada}
+                    disabled={form.tipoGeneral === 'Incapacidad' || form.tipoGeneral === 'Tardía'}
                   />
                   <span className={styles.slider} />
                 </label>
-                <span className={styles.switchLabel}>Jornada completa</span>
+                <span className={styles.switchLabel}>
+                  <span className={styles.long}>Jornada completa</span>
+                  <span className={styles.short}>Completa</span>
+                </span>
+                {form.tipoGeneral === 'Incapacidad' ? (
+                  <span className={styles.hint} style={{marginLeft:8}}>Obligatorio para incapacidad</span>
+                ) : form.tipoGeneral === 'Tardía' ? (
+                  <span className={styles.hint} style={{marginLeft:8}}>Obligatorio en tardía (solo media jornada)</span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -512,7 +581,10 @@ export default function SolicitudPermiso() {
                 <span className={styles.lbl} style={{ marginBottom: 0 }}>Tipo de fecha</span>
               </div>
               <div className={styles.switchWrap} role="group" aria-label="Tipo de fecha">
-                <span className={styles.switchLabel}>Solo una fecha</span>
+                <span className={styles.switchLabel}>
+                  <span className={styles.long}>Solo una fecha</span>
+                  <span className={styles.short}>Solo una</span>
+                </span>
                 <label className={styles.switch} title={form.esRango ? 'Cambiar a una sola fecha' : 'Cambiar a varias fechas'}>
                   <input
                     type="checkbox"
@@ -522,7 +594,10 @@ export default function SolicitudPermiso() {
                   />
                   <span className={styles.slider} />
                 </label>
-                <span className={styles.switchLabel}>Varias fechas</span>
+                <span className={styles.switchLabel}>
+                  <span className={styles.long}>Varias fechas</span>
+                  <span className={styles.short}>Varias</span>
+                </span>
               </div>
             </div>
           </div>
@@ -535,8 +610,8 @@ export default function SolicitudPermiso() {
             <input title="Selecciona la fecha de inicio del permiso" className={styles.input} type="date" name="fecha" value={form.fecha} onChange={e => {
                 const val = e.target.value;
                 const d = new Date(val);
-                // 0 = domingo, 6 = sábado
-                if (d && (d.getDay() === 0 || d.getDay() === 6)) {
+                // 5 = sabado, 6 = domingo
+                if (d && (d.getDay() === 5 || d.getDay() === 6)) {
                   setErrorsUI(p => ({ ...p, fecha: 'No se permiten fines de semana' }));
                   setForm(f => ({ ...f, fecha: '' }));
                   return;
@@ -656,8 +731,8 @@ export default function SolicitudPermiso() {
             <div className={styles.help}>Se autodefine según tu puesto.</div>
           </div>
 
-          {/* Hora de salida */}
-          {form.jornada === 'Media' && (
+          {/* Hora de salida: solo mostrar si NO es Tardía */}
+          {form.jornada === 'Media' && form.tipoGeneral !== 'Tardía' && (
             <div className={`${styles.field} ${styles['span-4']}`}>
               <label className={styles.lbl}>Hora de salida del centro educativo</label>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -698,17 +773,27 @@ export default function SolicitudPermiso() {
         <div className={styles.field}>
           <label className={styles.lbl}>Motivo</label>
           <select name="tipoSolicitud" value={form.tipoSolicitud} onChange={handleChange} className={styles.select}>
-            <option>Cita medica personal</option>
-            <option>Acompañar a cita familiar</option>
+            <option>Asuntos medicos personales</option>
+            <option>Asuntos medicos familiares</option>
             <option>Asistencia a convocatoria</option>
             <option>Atención de asuntos personales</option>
           </select>
+          {form.tipoSolicitud === 'Asuntos medicos personales' && (
+            <div className={styles.help}>
+              Solo son permitidos los comprobantes de programación de cita medicas (no confundir con comprobante de asistencia a cita medica), o en caso de incapacidad, comprobante de incapacidad
+            </div>
+          )}
+          {form.tipoSolicitud === 'Asuntos medicos familiares' && (
+            <div className={styles.help}>
+              Solo son permitidos los comprobantes de programación de cita medica del familiar (no confundir con comprobante de asistencia a cita medica)
+            </div>
+          )}
         </div>
 
         
 
         {/* Dependiente del tipo */}
-        {form.tipoSolicitud === "Acompañar a cita familiar" && (
+  {form.tipoSolicitud === "Asuntos medicos familiares" && (
           <div className={styles.field}>
             <label className={styles.lbl}>Familiar</label>
               <select name="familiar" value={form.familiar} onChange={handleChange} className={styles.select}>
@@ -723,7 +808,7 @@ export default function SolicitudPermiso() {
           </div>
         )}
 
-        {(form.tipoSolicitud === "Cita medica personal" || form.tipoSolicitud === "Asistencia a convocatoria") && (
+  {(form.tipoSolicitud === "Asuntos medicos personales" || form.tipoSolicitud === "Asistencia a convocatoria" || form.tipoSolicitud === "Asuntos medicos familiares" || form.tipoSolicitud === "Atención de asuntos personales") && (
           <div className={styles.field}>
             <label className={styles.lbl}>Adjuntar documento</label>
             <div

@@ -1,0 +1,78 @@
+.pageWrap {
+  max-width: 95%;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+}
+
+.headerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0 2rem;
+}
+
+.brandTitle {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 1.5rem;
+  color: #2D3D7E;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.logoHeader {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 120px;
+  height: auto;
+  padding: 10px;
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #2D3D7E;
+  font-size: 1.2rem;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ffffff;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.table thead th {
+  background-color: #ffffff;
+  font-weight: 700;
+  color: #2D3D7E;
+  font-size: 1.2rem;
+}
+
+.table tbody tr:nth-child(odd) { background-color: #ffffff; }
+.table tbody tr:nth-child(even) { background-color: #D3E7FF; }
+
+.idCell { width: 3rem; text-align: center; color: #2D3D7E; font-size: 1.1rem; font-weight: 700; }
+
+.openLink { color: #2563eb; text-decoration: underline; }
+
+/* Urgency colors for Infraestructura tipo_reporte */
+.urgencyRed { color: #b91c1c; font-weight: 700; }      /* Muy urgente */
+.urgencyYellow { color: #b45309; font-weight: 700; }   /* Normal */
+.urgencyGreen { color: #166534; font-weight: 700; }    /* No urgente */

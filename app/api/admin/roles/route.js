@@ -2,7 +2,7 @@ import { requireAnyRole } from '../../../../lib/authHelpers';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 export async function GET(req) {
-  const maybe = await requireAnyRole(req, ['admin', 'dev']);
+  const maybe = await requireAnyRole(req, ['admin', 'dev', 'staff_manager']);
   if (maybe instanceof Response) return maybe;
 
   const { data, error } = await supabaseAdmin.from('roles').select('id,slug,name,description');
@@ -12,7 +12,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   // assign role to user by cedula { cedula, role_slug }
-  const maybe = await requireAnyRole(req, ['admin', 'dev']);
+  const maybe = await requireAnyRole(req, ['admin', 'dev', 'staff_manager']);
   if (maybe instanceof Response) return maybe;
   try {
     const body = await req.json();
@@ -35,7 +35,7 @@ export async function POST(req) {
 
 export async function DELETE(req) {
   // remove role from user by cedula { cedula, role_slug }
-  const maybe = await requireAnyRole(req, ['admin', 'dev']);
+  const maybe = await requireAnyRole(req, ['admin', 'dev', 'staff_manager']);
   if (maybe instanceof Response) return maybe;
   try {
     const body = await req.json();

@@ -95,8 +95,8 @@ export async function GET(req){
 }
 
 export async function POST(req){
-  // only admin may create users via this endpoint
-  const maybe = await requireAnyRole(req, ['admin'])
+  // allow staff_manager and admin to create users via this endpoint
+  const maybe = await requireAnyRole(req, ['staff_manager','admin'])
   if (maybe instanceof Response) return maybe
 
   try{

@@ -1,7 +1,9 @@
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { requireAnyRole, getUserAndRolesFromRequest } from '../../../../../lib/authHelpers';
 
-export async function POST(req, { params }){
+export async function POST(req, ctx){
+  const { params } = ctx || {}
+  const { id } = (params && (await params)) || {}
   // only admin may respond
   const maybe = await requireAnyRole(req, ['admin']);
   if (maybe instanceof Response) return maybe;

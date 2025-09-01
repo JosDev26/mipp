@@ -76,7 +76,7 @@ export default function FormJustificacion() {
     cantidad: "",
     unidad: "horas",
     horaSalida: "",
-    tipoJustificacion: "Cita medica personal",
+    tipoJustificacion: "Asuntos medicos personales",
     familiar: "",
     observaciones: "",
   adjunto: null,
@@ -150,21 +150,6 @@ export default function FormJustificacion() {
     setForm((p) => ({ ...p, unidad: isProfesor ? 'lecciones' : 'horas' }));
   }, [isProfesor]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : files ? files[0] : value,
-    }));
-    // inline validation
-    if (name === 'fecha') setErrorsUI(p => ({ ...p, fecha: value ? undefined : 'Selecciona la fecha inicio' }));
-    if (name === 'fechaFin') setErrorsUI(p => ({ ...p, fechaFin: value ? undefined : 'Selecciona la fecha fin' }));
-    if (name === 'cantidad') {
-      const n = Number(value);
-      setErrorsUI(p => ({ ...p, cantidad: value && (!Number.isFinite(n) || n <= 0) ? 'Debe ser un número positivo' : undefined }));
-    }
-  };
-
   // HH:MM helpers for picker values
   const toHHMM = (d) => (d && dayjs.isDayjs(d)) ? `${fmt2(d.hour())}:${fmt2(d.minute())}` : '';
   const fromHHMM = (s) => {
@@ -182,6 +167,99 @@ export default function FormJustificacion() {
   const fmtHHMM = (mins) => `${fmt2(Math.floor(mins / 60))}:${fmt2(mins % 60)}`;
   const minTimeDJ = () => dayjs().hour(7).minute(0).second(0).millisecond(0);
   const maxTimeDJ = () => dayjs().hour(16).minute(30).second(0).millisecond(0);
+
+  // Normaliza motivos antiguos a los nuevos
+  const normalizeMotivo = (val) => {
+    switch (val) {
+      case 'Cita medica personal': return 'Asuntos medicos personales';
+      case 'Acompañar a cita familiar': return 'Asuntos medicos familiares';
+      case 'Atención de asuntos familiares': return 'Atención de asuntos personales';
+      case 'Asuntos medicos personales':
+      case 'Asuntos medicos familiares':
+      case 'Asistencia a convocatoria':
+      case 'Atención de asuntos personales':
+        return val;
+      default:
+        return null;
+    }
+  };
+
+  // Helpers to clamp/normalize time ranges (mirror permiso form)
+  const clampTime = (hhmm) => {
+    const v = toMin(hhmm);
+    if (v == null) return TIME_MIN;
+    const lo = toMin(TIME_MIN);
+    const hi = toMin(TIME_MAX);
+    return fmtHHMM(Math.min(Math.max(v, lo), hi));
+  };
+  const addMin = (hhmm, delta) => {
+    const base = toMin(hhmm);
+    const lo = toMin(TIME_MIN);
+    const hi = toMin(TIME_MAX);
+    const next = (base == null ? lo : base) + delta;
+    return fmtHHMM(Math.min(Math.max(next, lo), hi));
+  };
+  const normalizeTimes = (start, end) => {
+    let s = clampTime(start);
+    let e = clampTime(end);
+    const sMin = toMin(s);
+    let eMin = toMin(e);
+    if (eMin <= sMin) {
+      e = addMin(s, STEP_MINUTES);
+      eMin = toMin(e);
+      if (eMin <= sMin) {
+        s = addMin(e, -STEP_MINUTES);
+      }
+    }
+    return { s, e };
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked, files } = e.target;
+    setForm((prev) => {
+      let next = { ...prev, [name]: type === 'checkbox' ? checked : files ? files[0] : value };
+      // Enforce jornada constraints when changing tipo
+      if (name === 'tipoGeneral') {
+        if (value === 'Incapacidad') {
+          next.jornada = 'Completa';
+          next.horaSalida = '';
+        } else if (value === 'Tardía') {
+          next.jornada = 'Media';
+          next.horaInicio = next.horaInicio || TIME_MIN;
+          next.horaFin = next.horaFin || addMin(next.horaInicio, STEP_MINUTES);
+          const { s, e } = normalizeTimes(next.horaInicio, next.horaFin);
+          next.horaInicio = s; next.horaFin = e;
+        }
+      }
+      return next;
+    });
+    // inline validation
+    if (name === 'fecha') setErrorsUI(p => ({ ...p, fecha: value ? undefined : 'Selecciona la fecha inicio' }));
+    if (name === 'fechaFin') setErrorsUI(p => ({ ...p, fechaFin: value ? undefined : 'Selecciona la fecha fin' }));
+    if (name === 'cantidad') {
+      const n = Number(value);
+      setErrorsUI(p => ({ ...p, cantidad: value && (!Number.isFinite(n) || n <= 0) ? 'Debe ser un número positivo' : undefined }));
+    }
+  };
+
+  // Also react if tipoGeneral changes indirectly (e.g., by autofill from solicitud)
+  useEffect(() => {
+    setForm((prev) => {
+      if (!prev) return prev;
+      if (prev.tipoGeneral === 'Incapacidad' && prev.jornada !== 'Completa') {
+        return { ...prev, jornada: 'Completa', horaSalida: '' };
+      }
+      if (prev.tipoGeneral === 'Tardía' && prev.jornada !== 'Media') {
+        const next = { ...prev, jornada: 'Media' };
+        next.horaInicio = next.horaInicio || TIME_MIN;
+        next.horaFin = next.horaFin || addMin(next.horaInicio, STEP_MINUTES);
+        const { s, e } = normalizeTimes(next.horaInicio, next.horaFin);
+        next.horaInicio = s; next.horaFin = e;
+        return next;
+      }
+      return prev;
+    });
+  }, [form.tipoGeneral]);
 
   const toggleFechaModo = (checked) => setForm((p) => ({
     ...p,
@@ -250,12 +328,7 @@ export default function FormJustificacion() {
       cantidad: s.cantidad != null ? String(s.cantidad) : p.cantidad,
       unidad: s.unidad || p.unidad,
       horaSalida: s.hora_salida || p.horaSalida,
-      tipoJustificacion: [
-        'Cita medica personal',
-        'Acompañar a cita familiar',
-        'Asistencia a convocatoria',
-        'Atención de asuntos personales'
-      ].includes(s.tipo_solicitud) ? s.tipo_solicitud : p.tipoJustificacion,
+      tipoJustificacion: normalizeMotivo(s.tipo_solicitud) || p.tipoJustificacion,
     }));
   };
 
@@ -491,10 +564,21 @@ export default function FormJustificacion() {
               <div className={styles.switchWrap} role="group" aria-label="Tipo de jornada">
                 <span className={styles.switchLabel}>Media jornada</span>
                 <label className={styles.switch} title={form.jornada === 'Media' ? 'Cambiar a jornada completa' : 'Cambiar a media jornada'}>
-                  <input type="checkbox" aria-checked={form.jornada === 'Completa'} checked={form.jornada === 'Completa'} onChange={(e) => toggleJornada(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    aria-checked={form.jornada === 'Completa'}
+                    checked={form.jornada === 'Completa'}
+                    onChange={(e) => toggleJornada(e.target.checked)}
+                    disabled={form.tipoGeneral === 'Incapacidad' || form.tipoGeneral === 'Tardía'}
+                  />
                   <span className={styles.slider} />
                 </label>
                 <span className={styles.switchLabel}>Jornada completa</span>
+                {form.tipoGeneral === 'Incapacidad' ? (
+                  <span className={styles.hint} style={{ marginLeft: 8 }}>Obligatorio para incapacidad</span>
+                ) : form.tipoGeneral === 'Tardía' ? (
+                  <span className={styles.hint} style={{ marginLeft: 8 }}>Obligatorio en tardía (solo media jornada)</span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -537,7 +621,7 @@ export default function FormJustificacion() {
                 <label className={styles.lbl}>Hora inicio</label>
                   <TimePicker
                     ampm
-                    minutesStep={5}
+                    minutesStep={STEP_MINUTES}
                     value={fromHHMM(form.horaInicio)}
                     onChange={(v) => setForm((p) => ({ ...p, horaInicio: toHHMM(v) }))}
                     minTime={minTimeDJ()}
@@ -549,7 +633,7 @@ export default function FormJustificacion() {
                 <label className={styles.lbl}>Hora fin</label>
                   <TimePicker
                     ampm
-                    minutesStep={5}
+                    minutesStep={STEP_MINUTES}
                     value={fromHHMM(form.horaFin)}
                     onChange={(v) => setForm((p) => ({ ...p, horaFin: toHHMM(v) }))}
                     minTime={fromHHMM(form.horaInicio) || minTimeDJ()}
@@ -557,17 +641,19 @@ export default function FormJustificacion() {
                     slotProps={{ textField: { required: true, size:'small' } }}
                   />
               </div>
-              <div className={`${styles.field} ${styles['span-6']}`}>
-                <label className={styles.lbl}>Hora de salida</label>
-                  <TimePicker
-                    ampm
-                    minutesStep={5}
-                    value={fromHHMM(form.horaSalida)}
-                    onChange={(v) => setForm((p) => ({ ...p, horaSalida: toHHMM(v) }))}
-                    minTime={minTimeDJ()}
-                    maxTime={maxTimeDJ()}
-                  />
-              </div>
+              {form.tipoGeneral !== 'Tardía' && (
+                <div className={`${styles.field} ${styles['span-6']}`}>
+                  <label className={styles.lbl}>Hora de salida</label>
+                    <TimePicker
+                      ampm
+                      minutesStep={STEP_MINUTES}
+                      value={fromHHMM(form.horaSalida)}
+                      onChange={(v) => setForm((p) => ({ ...p, horaSalida: toHHMM(v) }))}
+                      minTime={minTimeDJ()}
+                      maxTime={maxTimeDJ()}
+                    />
+                </div>
+              )}
             </LocalizationProvider>
           )}
         </div>
@@ -588,17 +674,27 @@ export default function FormJustificacion() {
 
         {/* Tipo de justificación */}
         <div className={styles.field}>
-          <label className={styles.lbl}>Tipo de justificación</label>
+          <label className={styles.lbl}>Motivo</label>
           <select name="tipoJustificacion" value={form.tipoJustificacion} onChange={handleChange} className={styles.select}>
-            <option>Cita medica personal</option>
-            <option>Acompañar a cita familiar</option>
+            <option>Asuntos medicos personales</option>
+            <option>Asuntos medicos familiares</option>
             <option>Asistencia a convocatoria</option>
             <option>Atención de asuntos personales</option>
           </select>
+          {form.tipoJustificacion === 'Asuntos medicos personales' && (
+            <div className={styles.help}>
+              Solo son permitidos los comprobantes de asistencia a citas medicas, o en caso de incapacidad, comprobante de incapacidad
+            </div>
+          )}
+          {form.tipoJustificacion === 'Asuntos medicos familiares' && (
+            <div className={styles.help}>
+              Solo son permitidos los comprobantes de asistencia a citas medicas del familiar
+            </div>
+          )}
         </div>
 
         {/* Dependiente del tipo */}
-        {form.tipoJustificacion === 'Acompañar a cita familiar' && (
+        {form.tipoJustificacion === 'Asuntos medicos familiares' && (
           <div className={styles.field}>
             <label className={styles.lbl}>Familiar</label>
             <select name="familiar" value={form.familiar} onChange={handleChange} className={styles.select}>
@@ -614,32 +710,30 @@ export default function FormJustificacion() {
           </div>
         )}
 
-        {['Cita medica personal','Asistencia a convocatoria','Acompañar a cita familiar'].includes(form.tipoJustificacion) && (
-          <div className={styles.field}>
-            <label className={styles.lbl}>Adjuntar documento</label>
-            <div
-              className={`${styles.fileDrop} ${dragOver ? styles.fileDropActive : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer?.files?.[0]; if (f) setForm(p => ({ ...p, adjunto: f })); }}
-              onClick={() => document.getElementById('just-adj-file')?.click()}
-              role="button" tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('just-adj-file')?.click(); }}
-              aria-label="Arrastra y suelta el documento o haz clic para seleccionar"
+        <div className={styles.field}>
+             <label className={styles.lbl}>Adjuntar documento</label>
+             <div
+               className={`${styles.fileDrop} ${dragOver ? styles.fileDropActive : ''}`}
+               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+               onDragLeave={() => setDragOver(false)}
+               onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer?.files?.[0]; if (f) setForm(p => ({ ...p, adjunto: f })); }}
+               onClick={() => document.getElementById('just-adj-file')?.click()}
+               role="button" tabIndex={0}
+               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('just-adj-file')?.click(); }}
+               aria-label="Arrastra y suelta el documento o haz clic para seleccionar"
             >
-              <input id="just-adj-file" type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} style={{ display: 'none' }} />
-              <div className={styles.fileDropInner}>
-                <div className={styles.fileIcon} aria-hidden>📎</div>
-                <div className={styles.fileText}>{form.adjunto ? `Archivo: ${form.adjunto.name}` : 'Arrastra y suelta el documento o haz clic para seleccionar'}</div>
-              </div>
-            </div>
-            <span className={styles.hint}>
-              {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
-              {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}
-            </span>
-            {errorsUI.adjunto && <div className={styles.error}>{errorsUI.adjunto}</div>}
-          </div>
-        )}
+               <input id="just-adj-file" type="file" name="adjunto" accept=".pdf,.doc,.docx,image/*" onChange={handleChange} style={{ display: 'none' }} />
+               <div className={styles.fileDropInner}>
+                 <div className={styles.fileIcon} aria-hidden>📎</div>
+                 <div className={styles.fileText}>{form.adjunto ? `Archivo: ${form.adjunto.name}` : 'Arrastra y suelta el documento o haz clic para seleccionar'}</div>
+               </div>
+             </div>
+             <span className={styles.hint}>
+               {uploading ? <span className={styles.spinnerInline} aria-hidden /> : null}
+               {uploading ? 'Subiendo documento…' : 'Se permiten imágenes (JPG, PNG), PDF y Word'}
+             </span>
+             {errorsUI.adjunto && <div className={styles.error}>{errorsUI.adjunto}</div>}
+           </div>
 
         {/* Observaciones */}
         <div className={`${styles.field} ${styles['span-12']}`}>

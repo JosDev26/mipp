@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import styles from '../home/page.module.css';
 
 export default function ChangePasswordPage() {
   const [cedula, setCedula] = React.useState('');
@@ -33,7 +34,7 @@ export default function ChangePasswordPage() {
     try {
       const res = await fetch('/api/change-password', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cedula, newPassword }),
       });
       const data = await res.json();
@@ -48,35 +49,57 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth:400, margin:'2rem auto', display:'grid', gap:12 }}>
-      <div role="status" aria-live="polite" style={{ minHeight:24 }}>
-        {status?.text && (
-          <div style={{
-            padding:'10px 12px', borderRadius:10, fontWeight:700,
-            background: status?.type==='error' ? '#fef2f2' : status?.type==='success' ? '#ecfdf5' : '#eff6ff',
-            color: status?.type==='error' ? '#991b1b' : status?.type==='success' ? '#065f46' : '#1e40af',
-            border: '1px solid',
-            borderColor: status?.type==='error' ? '#fecaca' : status?.type==='success' ? '#a7f3d0' : '#bfdbfe'
-          }}>{status.text}</div>
-        )}
-      </div>
-      {errorsList.length > 0 && (
-        <div ref={summaryRef} role="alert" aria-live="assertive" style={{ border:'1px solid #e5e7eb', borderLeft:'4px solid #dc2626', background:'#fffafa', borderRadius:10, padding:'10px 12px' }}>
-          <strong>Revisa estos puntos:</strong>
-          <ul style={{ margin:'8px 0 0 18px' }}>{errorsList.map((m,i)=>(<li key={i}>{m}</li>))}</ul>
+    <div className={`${styles.page} ${styles.themeNoRole}`}>
+      <div className={styles.shell}>
+        <header className={styles.header}>
+          <div className={styles.brandWrap}>
+            <div className={styles.brand}>MIPP+</div>
+          </div>
+          <div className={styles.headerCenter}>
+            <div className={styles.welcome}>Seguridad</div>
+            <h1 className={styles.userTitle}>Cambiar contraseña</h1>
+          </div>
+          <div style={{ width: 44, height: 44 }} />
+        </header>
+
+        <section className={styles.hero}>
+          <p>Usuario: <strong>{cedula || '—'}</strong></p>
+        </section>
+
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
+          <article className={styles.card} style={{ display: 'block' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+              <div role="status" aria-live="polite" style={{ minHeight: 24 }}>
+                {status?.text && (
+                  <div style={{
+                    padding: '10px 12px', borderRadius: 10, fontWeight: 700,
+                    background: status?.type === 'error' ? '#fef2f2' : status?.type === 'success' ? '#ecfdf5' : '#eff6ff',
+                    color: status?.type === 'error' ? '#991b1b' : status?.type === 'success' ? '#065f46' : '#1e40af',
+                    border: '1px solid',
+                    borderColor: status?.type === 'error' ? '#fecaca' : status?.type === 'success' ? '#a7f3d0' : '#bfdbfe'
+                  }}>{status.text}</div>
+                )}
+              </div>
+              {errorsList.length > 0 && (
+                <div ref={summaryRef} role="alert" aria-live="assertive" style={{ border: '1px solid #e5e7eb', borderLeft: '4px solid #dc2626', background: '#fffafa', borderRadius: 10, padding: '10px 12px' }}>
+                  <strong>Revisa estos puntos:</strong>
+                  <ul style={{ margin: '8px 0 0 18px' }}>{errorsList.map((m, i) => (<li key={i}>{m}</li>))}</ul>
+                </div>
+              )}
+              <label style={{ display: 'grid', gap: 6 }}>
+                Nueva contraseña:
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 8 }} />
+              </label>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button disabled={loading} type="button" className={`${styles.pillBtn} ${styles.pillGhost}`} onClick={() => router.push('/login')}>Cancelar</button>
+                <button disabled={loading} type="submit" className={`${styles.pillBtn} ${styles.pillPrimary}`}>
+                  {loading ? 'Guardando…' : 'Guardar nueva contraseña'}
+                </button>
+              </div>
+            </form>
+          </article>
         </div>
-      )}
-      <h2 style={{ margin:0 }}>Cambiar contraseña</h2>
-      <p>Usuario: <strong>{cedula}</strong></p>
-      <label style={{ display:'grid', gap:6 }}>
-        Nueva contraseña:
-        <input type="password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} required style={{ padding:'8px 10px', border:'1px solid #e5e7eb', borderRadius:8 }} />
-      </label>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-        <button disabled={loading} type="submit" style={{ border:'none', borderRadius:999, padding:'10px 16px', fontWeight:800, background:'#7a1f26', color:'#fff' }}>
-          {loading ? 'Guardando...' : 'Guardar nueva contraseña'}
-        </button>
       </div>
-    </form>
+    </div>
   );
 }

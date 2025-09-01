@@ -13,22 +13,40 @@ export default async function Page() {
     redirect('/home');
   }
   return (
-    <div className={s.page}>
-      <section className={s.left} aria-hidden>
-  <div className={s.sun} />
-  <h1 className={s.slogan}>“Modulo Inteligente de Permisos de Personal +”</h1>
-      </section>
-      <section className={s.right}>
-        <header className={s.logos}>
-          <div className={s.logoLeft}>
-            <Image src="/images/login/tpmn.png" alt="TPMN" width={150} height={65} priority />
+    <div className={s['login-container']}>
+      {/* Izquierda: fondo granate, sol, título y edificios */}
+      <section className={s['left-section']} aria-hidden>
+        <div className={s['sun-container']}>
+          <Image src="/images/Sol.png" alt="Sol" className={s['sun-image']} width={160} height={160} priority />
+        </div>
+        <div className={s['title-container']}>
+          <div className={s['title-content']}>
+            <h1 className={s['main-title']}>Modulo Inteligente de Permisos de Personal +</h1>
           </div>
-          <div className={s.logoRight}>MIPP+</div>
+        </div>
+        <div className={s['buildings-container']}>
+          <Image src="/images/edificios.png" alt="Edificios" className={s['edificios-image']} width={800} height={200} />
+        </div>
+      </section>
+
+      {/* Derecha: logos y formulario centrado */}
+      <section className={s['right-section']}>
+        <header className={s['header-logos']}>
+          <div className={s['logo-tpmn']}>
+            <Image src="/images/logoCTPMN.png" alt="TPMN Logo" className={s['tpmn-logo']} width={200} height={100} priority />
+          </div>
+          <div className={s['logo-mipp']}>
+            <Image src="/images/logoMIPP.png" alt="MIPP+ Logo" className={s['mipp-logo']} width={160} height={40} />
+          </div>
         </header>
-        <div className={s.centerBox}>
-          <h2 className={s.loginTitle}>Inicio de Sesión</h2>
-          <div className={s.cardWrap}>
-            <LoginForm />
+        <div className={s['form-container']}>
+          <div className={s['form-wrapper']}>
+            <div className={s['form-header']}>
+              <h2 className={s['form-title']}>Inicio de Sesión</h2>
+            </div>
+            <div className={s.cardWrap}>
+              <LoginForm />
+            </div>
           </div>
         </div>
       </section>

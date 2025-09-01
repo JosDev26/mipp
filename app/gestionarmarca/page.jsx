@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import useCurrentUser from '../../lib/useCurrentUser';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import styles from '../shared/adminList.module.css';
 
 export default function GestionarMarcaPage(){
   const router = useRouter();
@@ -43,23 +44,24 @@ export default function GestionarMarcaPage(){
   }, [isAdmin]);
 
   return (
-    <div style={{ maxWidth: 1000, margin: '2rem auto', padding: 24 }}>
-  <LoadingOverlay show={authLoading || loading} text="Cargando datos..." />
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver</Link>
-      </nav>
-      <h2>Gestionar omisiones de marca (Pendientes)</h2>
+    <div className={styles.pageWrap}>
+      <LoadingOverlay show={authLoading || loading} text="Cargando datos..." />
+      <img src="/images/logoMIPP.png" alt="MIPP+ Logo" className={styles.logoHeader} />
+      <h1 className={styles.brandTitle}>Gestionar omisiones de marca</h1>
+      <div className={styles.headerBar}>
+        <Link href="/home" className={styles.backLink}>&lt; Volver</Link>
+      </div>
       {loading ? <p>Cargando…</p> : (
         rows.length === 0 ? <p>No hay omisiones pendientes.</p> : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ background:'#f3f4f6' }}>
-                  <th style={{ textAlign:'left', padding:8 }}>#</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Ingresado</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Funcionario</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Tipo</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Detalle</th>
+                <tr>
+                  <th className={styles.idCell}>#</th>
+                  <th>Ingresado</th>
+                  <th>Funcionario</th>
+                  <th>Tipo</th>
+                  <th>Detalle</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,15 +70,13 @@ export default function GestionarMarcaPage(){
                   const fecha = dt ? dt.toLocaleDateString() : '—';
                   const hora = dt ? dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
                   return (
-                    <tr key={r.id} style={{ borderBottom:'1px solid #eee' }}>
-                      <td style={{ padding:8 }}>#{r.id}</td>
-                      <td style={{ padding:8 }}>{fecha} {hora && `• ${hora}`}</td>
-                      <td style={{ padding:8 }}>{r.nombre_suscriptor || '—'}</td>
-                      <td style={{ padding:8 }}>{r.tipo_omision || 'Omisión'}</td>
-                      <td style={{ padding:8 }}>
-                        <Link href={`/omisionmarca/${r.id}`}>Abrir</Link>
-                        {' '}|{' '}
-                        <Link href={`/omisionmarca/${r.id}/responder`} style={{ color:'#2563eb' }}>Responder</Link>
+                    <tr key={r.id}>
+                      <td className={styles.idCell}>#{r.id}</td>
+                      <td>{fecha} {hora && `• ${hora}`}</td>
+                      <td>{r.nombre_suscriptor || '—'}</td>
+                      <td>{r.tipo_omision || 'Omisión'}</td>
+                      <td>
+                        <Link href={`/omisionmarca/${r.id}`} className={styles.openLink}>Abrir</Link>
                       </td>
                     </tr>
                   );

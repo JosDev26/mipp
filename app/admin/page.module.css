@@ -95,6 +95,10 @@
 .input, .select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 14px; box-sizing: border-box; transition: border-color .2s ease, box-shadow .25s ease, transform .12s ease; font-family: inherit; }
 .input:focus, .select:focus { outline: none; border-color: color-mix(in srgb, var(--brand) 60%, #ffffff 40%); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent), 0 8px 18px rgba(0,0,0,.05); }
 
+/* Subtle helper text */
+.hint { color: var(--muted); font-size: 12px; margin-top: -4px; animation: hintIn .25s ease both; }
+@keyframes hintIn { from { opacity: 0; transform: translateY(-2px);} to { opacity: 1; transform: translateY(0);} }
+
 /* Animations */
 .enter { animation: fadeUp .35s ease both; }
 .listAnimate { animation: fadeUp .28s ease both; }

@@ -298,6 +298,8 @@
   flex-wrap: wrap;
 }
 .switchLabel { color: #374151; font-weight: 700; font-size: 14px; }
+.long { display: inline; }
+.short { display: none; }
 .switch {
   /* Use variables for precise geometry so the knob centers perfectly */
   --sw-w: 54px;     /* track width */
@@ -345,6 +347,9 @@
 @media (max-width: 400px) {
   /* Keep proportions but shrink the control; variables handle the math */
   .switch { --sw-w: 46px; --sw-h: 26px; }
+  /* In mobile, show compact labels */
+  .long { display: none; }
+  .short { display: inline; }
 }
 
 /* Tiny spinner for inline loading states (e.g., uploads) */

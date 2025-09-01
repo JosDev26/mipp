@@ -240,6 +240,17 @@ export default function StaffManagerClient({ initialUsers = [], initialTotal = 0
 
   return (
     <div className={`${styles.page} ${styles.enter}`}>
+      {/* Botón volver a home arriba */}
+      <div style={{ margin: '16px 0 0 0' }}>
+        <button
+          className={`${styles.btn} ${styles.btnSecondary}`}
+          onClick={() => router.push('/home')}
+          type="button"
+        >
+          ⟵ Volver a home
+        </button>
+      </div>
+
   <LoadingOverlay show={loading || creating} text={creating ? 'Creando usuario...' : 'Cargando datos...'} />
 
       {/* Sticky header */}
@@ -281,6 +292,7 @@ export default function StaffManagerClient({ initialUsers = [], initialTotal = 0
                 <option value="staff_manager">staff_manager</option>
                 <option value="infra_manager">infra_manager</option>
                 <option value="normal_user">normal_user</option>
+                <option value="viewer">viewer</option>
               </select>
               {roleFilter && (
                 <span className={styles.chip}>Filtro: {roleFilter} <button onClick={()=>setRoleFilter('')} title="Quitar filtro" className={styles.chipBtn}>&times;</button></span>
@@ -489,7 +501,8 @@ export default function StaffManagerClient({ initialUsers = [], initialTotal = 0
         </div>
       )}
 
-      {/* Floating Create User action for higher prominence */}
+
+
       {mainTab === 'users' && (
         <button
           className={styles.fab}
@@ -654,6 +667,11 @@ function UserDetail({ user, onUpdate, onDelete, onAssignRole, onRemoveRole }){
                 <input type="checkbox" checked={!!form.must_change_password} onChange={e=>setForm(f=>({...f, must_change_password: e.target.checked}))} />
                 <span>Debe cambiar contraseña</span>
               </label>
+              {form.must_change_password && (
+                <div className={styles.hint} style={{ gridColumn: '1 / -1' }}>
+                  La próxima vez que el usuario entre, deberá usar la contraseña por defecto 'admin123'. Después, el sistema le llevará a la página para cambiarla.
+                </div>
+              )}
             </div>
             <div style={{ display:'flex', gap: 8, justifyContent:'flex-end', marginTop: 12 }}>
               <button className={styles.btn} onClick={()=>setEditOpen(false)}>Cancelar</button>

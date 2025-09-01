@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import useCurrentUser from '../../lib/useCurrentUser';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import styles from '../shared/adminList.module.css';
 
 export default function GestionarInfraPage(){
   const router = useRouter();
@@ -42,24 +43,32 @@ export default function GestionarInfraPage(){
     if (isAdmin) load();
   }, [isAdmin]);
 
+  const urgencyClass = (tipo) => {
+    const t = (tipo || '').toString().toLowerCase();
+    if (t.includes('muy')) return styles.urgencyRed; // Muy urgente
+    if (t.includes('no')) return styles.urgencyGreen; // No urgente
+    return styles.urgencyYellow; // Normal (default)
+  };
+
   return (
-    <div style={{ maxWidth: 1000, margin: '2rem auto', padding: 24 }}>
-  <LoadingOverlay show={authLoading || loading} text="Cargando datos..." />
-      <nav style={{ marginBottom: 12 }}>
-        <Link href="/home">← Volver</Link>
-      </nav>
-      <h2>Gestionar reportes de infraestructura (Pendientes)</h2>
+    <div className={styles.pageWrap}>
+      <LoadingOverlay show={authLoading || loading} text="Cargando datos..." />
+      <img src="/images/logoMIPP.png" alt="MIPP+ Logo" className={styles.logoHeader} />
+      <h1 className={styles.brandTitle}>Gestionar reportes de infraestructura</h1>
+      <div className={styles.headerBar}>
+        <Link href="/home" className={styles.backLink}>&lt; Volver</Link>
+      </div>
       {loading ? <p>Cargando…</p> : (
         rows.length === 0 ? <p>No hay reportes pendientes.</p> : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <table className={styles.table}>
               <thead>
-                <tr style={{ background:'#f3f4f6' }}>
-                  <th style={{ textAlign:'left', padding:8 }}>#</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Ingresado</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Funcionario</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Tipo</th>
-                  <th style={{ textAlign:'left', padding:8 }}>Detalle</th>
+                <tr>
+                  <th className={styles.idCell}>#</th>
+                  <th>Ingresado</th>
+                  <th>Funcionario</th>
+                  <th>Tipo</th>
+                  <th>Detalle</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,15 +77,13 @@ export default function GestionarInfraPage(){
                   const fecha = dt ? dt.toLocaleDateString() : '—';
                   const hora = dt ? dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
                   return (
-                    <tr key={r.id} style={{ borderBottom:'1px solid #eee' }}>
-                      <td style={{ padding:8 }}>#{r.id}</td>
-                      <td style={{ padding:8 }}>{fecha} {hora && `• ${hora}`}</td>
-                      <td style={{ padding:8 }}>{r.nombre_suscriptor || '—'}</td>
-                      <td style={{ padding:8 }}>{r.tipo_reporte || 'Reporte'}</td>
-                      <td style={{ padding:8 }}>
-                        <Link href={`/reporteinf/${r.id}`}>Abrir</Link>
-                        {' '}|{' '}
-                        <Link href={`/reporteinf/${r.id}/responder`} style={{ color:'#2563eb' }}>Responder</Link>
+                    <tr key={r.id}>
+                      <td className={styles.idCell}>#{r.id}</td>
+                      <td>{fecha} {hora && `• ${hora}`}</td>
+                      <td>{r.nombre_suscriptor || '—'}</td>
+                      <td className={urgencyClass(r.tipo_reporte)}>{r.tipo_reporte || 'Reporte'}</td>
+                      <td>
+                        <Link href={`/reporteinf/${r.id}`} className={styles.openLink}>Abrir</Link>
                       </td>
                     </tr>
                   );

@@ -108,6 +108,15 @@ export default function SolicitudesResueltasPage(){
 
   const fmt = (dt) => dt ? new Date(dt).toLocaleString() : '—';
 
+  const kindBg = (kind) => {
+    const k = (kind || '').toLowerCase();
+    if (k.includes('permiso')) return '#E0F2FE'; // Permiso
+    if (k.includes('just')) return '#EDE9FE'; // Justificacion/Justificación
+    if (k.includes('omisi')) return '#DCFCE7'; // Omision de marca
+    if (k.includes('infra')) return '#FFEDD5'; // Infraestructura
+    return '#eef2f7';
+  };
+
   return (
     <div style={{ maxWidth: 1100, margin: '2rem auto', padding: 24 }}>
       <nav style={{ marginBottom: 12 }}>
@@ -131,7 +140,16 @@ export default function SolicitudesResueltasPage(){
               <tbody>
                 {rows.map(r => (
                   <tr key={`${r.kind}-${r.id}`} style={{ borderBottom:'1px solid #eee' }}>
-                    <td style={{ padding:8 }}>{r.kind}</td>
+                    <td style={{ padding:8 }}>
+                      <span style={{
+                        backgroundColor: kindBg(r.kind),
+                        padding: '2px 10px',
+                        borderRadius: 999,
+                        fontWeight: 700,
+                        color: '#111827',
+                        display: 'inline-block'
+                      }}>{r.kind}</span>
+                    </td>
                     <td style={{ padding:8 }}>{r.usuario}</td>
                     <td style={{ padding:8 }}>{fmt(r.creado)}</td>
                     <td style={{ padding:8 }}>{fmt(r.resuelto)}</td>

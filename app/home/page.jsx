@@ -180,9 +180,10 @@ export default function HomePage() {
   const statusColor = (estado) => {
     if (!estado) return '#999';
     const s = String(estado).toLowerCase();
-    if (s.includes('aprob') || s.includes('acept') || s.includes('solucion')) return '#16a34a';
-    if (s.includes('pend')) return '#f59e0b';
-    if (s.includes('rech') || s.includes('deneg') || s.includes('no solucion')) return '#ef4444';
+  // Important: check 'no solucionado' before generic 'solucionado' to avoid false green
+  if (s.includes('rech') || s.includes('deneg') || s.includes('no solucion')) return '#ef4444';
+  if (s.includes('aprob') || s.includes('acept') || s.includes('solucion')) return '#16a34a';
+  if (s.includes('pend')) return '#f59e0b';
     return '#6b7280';
   };
 

@@ -175,7 +175,7 @@ export default function ReporteInfraestructuraPage() {
 
           <div className={styles.field}>
             <label className={styles.lbl}>Lugar (sea específico)</label>
-            <input className={styles.input} value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej: Pabellón B, aula 7" />
+            <input className={styles.input} value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej: Edificio 1, en frente del aula 3" />
           </div>
 
           <div>

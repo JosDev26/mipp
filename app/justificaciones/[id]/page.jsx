@@ -91,6 +91,7 @@ export default function JustificacionDetalle() {
       <div className={styles.topbar}>
         <Link href="/gestionarjustificaciones" className={styles.back} title="Volver al listado">⟵ Volver</Link>
         <div className={styles.topActions}>
+          <Link href={`/api/justificaciones/${id}/pdf`} target="_blank" rel="noreferrer" className={styles.btn} title="Descargar PDF">Descargar PDF</Link>
           <Link href="/gestionarjustificaciones" className={styles.linkMuted}>Historial</Link>
         </div>
       </div>

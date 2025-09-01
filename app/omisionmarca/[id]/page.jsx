@@ -75,7 +75,10 @@ export default function OmisionMarcaDetalle() {
       </div>
 
       <div className={styles.topbar}>
-        <Link href="/omisionmarca/historial" className={styles.back} title="Volver al listado">⟵ Volver</Link>
+        <Link href="/home" className={styles.back} title="Volver al inicio">⟵ Volver</Link>
+        <div className={styles.topActions}>
+          <a href={`/api/omisionmarca/${id}/pdf`} target="_blank" rel="noreferrer" className={styles.btn} title="Descargar PDF">Descargar PDF</a>
+        </div>
       </div>
 
       <header className={styles.header}>
@@ -94,7 +97,7 @@ export default function OmisionMarcaDetalle() {
       ) : !row ? (
         <div className={styles.card}>
           <p>No se encontró la omisión de marca.</p>
-          <Link className={styles.btn} href="/omisionmarca/historial">Ir al historial</Link>
+          <Link className={styles.btn} href="/omisionmarca">Volver al listado</Link>
         </div>
       ) : (
         <>

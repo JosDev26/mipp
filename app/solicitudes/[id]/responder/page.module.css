@@ -1,4 +1,4 @@
-.page{padding:16px 20px}
+.page{padding:16px 20px;max-width:1100px;margin:0 auto}
 .pageEnter{animation:fadeIn .35s ease-out}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .statusBar{min-height:28px}
@@ -35,3 +35,14 @@
 .btnSecondary{background:#fff;border-color:#cbd5e1;color:#111827}
 .btnPrimary{background:#2563eb;color:#fff}
 @media (prefers-reduced-motion: reduce){.pageEnter,.contentEnter{animation:none}}
+
+/* Responsive fixes for very small screens */
+@media (max-width: 420px) {
+  .meta { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .select, .textarea { width: 100%; }
+  .actionsBar { position: static; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .spacer { display: none; }
+  .btn { width: 100%; }
+  .topbar { flex-wrap: wrap; }
+  .title { font-size: 16px; word-break: break-word; }
+}

@@ -23,3 +23,8 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+/* Minimal reset common to all pages */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
